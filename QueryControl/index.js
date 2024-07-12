@@ -107,8 +107,7 @@ app.use(
     |- /important - Access with error codes
     |- /regular - All accesses
 |- /get - Prioritised access to the database for SELECTS
-    |- /modlog 
-
+|- /update - second priority line for updating new data
 |- /insert - second priority line for adding new data
 |- /raw - Last priority but flexible requests
 */
