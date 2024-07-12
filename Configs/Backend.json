@@ -1,0 +1,10 @@
+{
+    "mainport":3000,
+    "reserveport":8080,
+    "DBSOURCE":"../DBs/usersdb.sqlite",
+    "DBSFTOURCE":"../DBs/faceitdb.sqlite",
+    "URLToQueryControl":"http://localhost:58881",
+    "origin":"http://localhost:8080",
+    "PathToCERT":"",
+    "PathToKEY":""
+}

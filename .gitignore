@@ -1,5 +1,6 @@
 #backend
 backend/node_modules
+backend/log
 #browser
 Browser/data
 Browser/node.exe
@@ -10,6 +11,8 @@ Configs/env.key
 DBs/Sessions
 DBs/mainframe.sqlite
 DBs/main.sqlite
+DBs/usersdb.sqlite
+DBs/faceitdb.sqlite
 #querycontrol
 QueryControl/node_modules
 QueryControl/log

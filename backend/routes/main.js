@@ -3,7 +3,9 @@ var router = express.Router();
 const auth = require(".././middleware");
 const Permissions = require(".././permission.js");
 var sqlite3 = require('sqlite3').verbose();
-const DBSFTOURCE = "../../databases/faceitdb.sqlite";
+const TechCFG = require('../../Configs/Backend.json');
+require("dotenv").config({ path: `../../Configs/.env.key` });
+const DBSFTOURCE = TechCFG.DBSFTOURCE;
 
 
     let dbf = new sqlite3.Database(DBSFTOURCE, (err) => {
@@ -12,28 +14,7 @@ const DBSFTOURCE = "../../databases/faceitdb.sqlite";
           console.error(err.message)
           throw err
         } 
-        else {        
-            
-            dbf.run(`CREATE TABLE championships (
-                Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                Name text, 
-                Link text, 
-                Status text,             
-                DateCreated DATE,
-                raw text
-                )`,
-            (err) => {
-                if (err) {
-                    // Table already created
-                } else{
-                    // Table just created, creating some rows
-                    //var insert = 'INSERT INTO Users (Username, Email, Password, Salt, DateCreated) VALUES (?,?,?,?,?)'
-                    /*db.run(insert, ["Admin", "goloviznin.danya@yandex.com", bcrypt.hashSync("LongLiveFT", salt), salt, Date('now')])
-                    db.run(insert, ["Phonograf", "phonograf@staff.eslgaming.com", bcrypt.hashSync("n1111pRBcdkk", salt), salt, Date('now')])
-                    db.run(insert, ["test", "test@example.com", bcrypt.hashSync("testas123121", salt), salt, Date('now')])
-                    db.run(insert, ["Techpriest", "p.djordjevic@efg.gg", bcrypt.hashSync("zDK4x2G6l7td12", salt), salt, Date('now')])*/
-                }
-            });  
+        else {          
             dbf.run(`CREATE TABLE logs (
                 Id INTEGER PRIMARY KEY AUTOINCREMENT,
                 match text, 
@@ -73,8 +54,7 @@ router.get("/ping", (req, res, next) => {
 });
 
 
-router.post("/faceit/logs/raw", auth,Permissions(["SQL"]), (req, res, next) => {
-    //:3004/main/
+router.post("/logs/raw", auth,Permissions(["SQL"]), (req, res, next) => {
     try {
         let sql = req.body.sql;
         var params = [];
@@ -95,8 +75,7 @@ router.post("/faceit/logs/raw", auth,Permissions(["SQL"]), (req, res, next) => {
     }
 });
 
-router.get("/faceit/logs/all",auth, (req, res, next) => {
-    //:3004/main/
+router.get("/logs/all",auth, (req, res, next) => {
     var sql = `SELECT * FROM logs where (raw is null) or (instr("${req.user.permissions}",raw)>0) or ("${req.user.permissions}" like "admin"))`
     var params = []
     dbf.all(sql, params, (err, rows) => {
@@ -112,8 +91,7 @@ router.get("/faceit/logs/all",auth, (req, res, next) => {
       });
 });
 
-router.get("/faceit/logs/recent",auth, (req, res, next) => {
-    //:3004/main/
+router.get("/logs/recent",auth, (req, res, next) => {
     var sql = `select *
     from [logs] f
     where (f.DateCreated > ${new Date(new Date()).getTime()-24*3600*1000}) and ((raw is null) or (instr("${req.user.permissions}",raw)>0) or ("${req.user.permissions}" like "admin")) ORDER BY Id DESC`;
@@ -132,8 +110,7 @@ router.get("/faceit/logs/recent",auth, (req, res, next) => {
       });
 });
 
-router.get("/faceit/logs/CountRecent",auth, (req, res, next) => {
-    //:3004/main/
+router.get("/logs/CountRecent",auth, (req, res, next) => {
     var sql = `SELECT COUNT(DateCreated) FROM logs WHERE (DateCreated > ${new Date(new Date()).getTime()-24*3600*1000}) and ((raw is null) or (instr("${req.user.permissions}",raw)>0) or ("${req.user.permissions}" like "admin"))`;
     
     var params = []
@@ -150,7 +127,7 @@ router.get("/faceit/logs/CountRecent",auth, (req, res, next) => {
       });
 });
 
-router.get("/faceit/logs/last",auth, (req, res, next) => {
+router.get("/logs/last",auth, (req, res, next) => {
     //:3004/main/
     var sql = `SELECT * FROM [logs] f where f.DateCreated > ${new Date(new Date()).getTime()-24*3600*1000} AND f.InternalStatus > 0  and ((raw is null) or (instr("${req.user.permissions}",raw)>0) or ("${req.user.permissions}" like "admin")) ORDER BY Id DESC LIMIT 6;`;
     
@@ -168,7 +145,7 @@ router.get("/faceit/logs/last",auth, (req, res, next) => {
       });
 });
 
-router.get("/faceit/logs/last/count",auth, (req, res, next) => {
+router.get("/logs/last/count",auth, (req, res, next) => {
     //:3004/main/
     var sql = `SELECT COUNT(*) FROM [logs] f where f.DateCreated > ${new Date(new Date()).getTime()-24*3600*1000} AND f.InternalStatus > 1 and ((raw is null) or (raw like "${req.user.permissions}") or (raw like "admin")) ORDER BY Id DESC LIMIT 4;`;
     
@@ -188,10 +165,10 @@ router.get("/faceit/logs/last/count",auth, (req, res, next) => {
 
 router.post("/mainframe/raw", auth,Permissions(["SQL"]),async function ll(req,res,next){
     try {
-      let url = `http://localhost:58881/raw`;
+      let url = `${TechCFG.URLToQueryControl}/raw`;
       let sql = req.body.sql;
       console.log(sql);
-      let token = `QW21312asd12fkmj`; //SECURITY ALERT! REPLACE IT WITH DOTENV
+      let token = process.env.TOKEN_KEY;
       let promiseA = await fetch(url, {
         method: "POST",
         mode: "cors",
@@ -200,7 +177,7 @@ router.post("/mainframe/raw", auth,Permissions(["SQL"]),async function ll(req,re
           "Accept": "accept",
           "Content-Type":"application/x-www-form-urlencoded",
           "Connection": "keep-alive",
-          "Origin":"http://localhost:3000",
+          "Origin":TechCFG.origin,
           "db-access-token": token,
           "sql":sql
         },

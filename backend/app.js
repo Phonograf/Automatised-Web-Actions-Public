@@ -3,15 +3,14 @@ var http = require('http');
 const https = require('https');
 const fs = require('fs');
 const app = express();
-
+const TechCFG = require('../Configs/Backend.json');
 require("dotenv").config({ path: `../Configs/.env.key` });
-const port = 3000;
-var md5 = require('md5')
+const port = TechCFG.mainport;
 var sqlite3 = require('sqlite3').verbose()
 const cors = require('cors');
 var jwt = require('jsonwebtoken');
 var bcrypt = require('bcryptjs');
-const DBSOURCE = "../../databases/usersdb.sqlite";
+const DBSOURCE = TechCFG.DBSOURCE;
 const auth = require("./middleware.js");
 const Permissions = require("./permission.js");
 var main = require('./routes/main.js');
@@ -19,7 +18,6 @@ var cookieParser = require('cookie-parser');
 let morgan = require('morgan');
 let rfs = require('rotating-file-stream');
 const path = require("path");
-const { ifError } = require('assert');
 
 let reestr =[];
 
@@ -30,8 +28,6 @@ let db = new sqlite3.Database(DBSOURCE, (err) => {
       throw err
     } 
     else {        
-        var salt = bcrypt.genSaltSync(10);
-        
         db.run(`CREATE TABLE Users (
             Id INTEGER PRIMARY KEY AUTOINCREMENT,
             Username text, 
@@ -42,7 +38,6 @@ let db = new sqlite3.Database(DBSOURCE, (err) => {
             DateLoggedIn DATE,
             DateCreated DATE,
             GFX text,
-            FACEIT text,
             raw text
             )`,
         (err) => {
@@ -50,24 +45,21 @@ let db = new sqlite3.Database(DBSOURCE, (err) => {
                 // Table already created
             } else{
                 // Table just created, creating some rows
-                /*var insert = 'INSERT INTO Users (Username, Email, Password, Salt, DateCreated) VALUES (?,?,?,?,?)'
-                var salt = bcrypt.genSaltSync(10);
-                db.run(insert, ["Admin", "goloviznin.danya@yandex.com", bcrypt.hashSync("LongLiveFT", salt), salt, Date('now')])*/
                 var salt = bcrypt.genSaltSync(10);
 
                 var data = {
-                    Username: "Phonograf",
-                    Email: "goloviznin.danya@yandex.ru",
-                    Password: bcrypt.hashSync("LongLiveFT", salt),
+                    Username: "admin",
+                    Email: "admin@admin.com",
+                    Password: bcrypt.hashSync("admin!", salt),
                     Salt: salt,
                     DateCreated: Date('now')
                 }
         
-                var sql ='INSERT INTO Users (Username, Email, Password, Salt, DateCreated) VALUES (?,?,?,?,?)'
+                var sql ='INSERT INTO Users (Username, Email, Password, Salt, DateCreated,raw) VALUES (?,?,?,?,?,?)'
                 var params =[data.Username, data.Email, data.Password, data.Salt, Date('now'),'admin']
                 var user = db.run(sql, params, function (err, innerResult) {
                     if (err){
-                        res.status(400).json({"error": err.message})
+                        console.log(err);
                         return;
                     }
                   
@@ -450,13 +442,14 @@ var httpServer = http.createServer(app);
 var httpsServer;
 try {
     const options = {
-        cert: fs.readFileSync('/var/www/httpd-cert/api.nlxconsulting.com_2024-04-24-17-22_24.crt'),
-        key: fs.readFileSync('/var/www/httpd-cert/api.nlxconsulting.com_2024-04-24-17-22_24.key')
+        cert: fs.readFileSync(TechCFG.PathToCERT),
+        key: fs.readFileSync(TechCFG.PathToKEY)
     };
     httpsServer = https.createServer(options, app);
+    console.log(`API HTTPS listening on port ${port}!`);
     httpsServer.listen(port); 
 } catch (error) {
     console.log(`https client faied: ${error}`);
 }
-httpServer.listen(8080);
-console.log(`API HTTPS listening on port ${port}!`);
+httpServer.listen(TechCFG.reserveport);
+console.log(`API HTTP listening on port ${TechCFG.reserveport}!`);
