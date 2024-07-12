@@ -9,6 +9,7 @@ Configs/env.key
 #DBs
 DBs/Sessions
 DBs/mainframe.sqlite
+DBs/main.sqlite
 #querycontrol
 QueryControl/node_modules
 QueryControl/log

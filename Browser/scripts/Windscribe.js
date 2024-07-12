@@ -11,48 +11,9 @@ let DBSOURCE = process.env.PathToDB;
 let db = new sqlite3(DBSOURCE, {}, (err) => {
     if (err) {
         // Cannot open database
-        console.error(err.message);
+        log(err.message,'err');
         throw err
     }
-    db.run(`CREATE TABLE Mainframe (
-            Id INTEGER PRIMARY KEY AUTOINCREMENT,
-            Nickname text, 
-            Email text, 
-            Password text,
-            RelativeStorage text,
-            IncidentLog TEXT,
-            Refferer TEXT,
-            Created Integer,
-            CreateTime DATE, 
-            ToBeRevisited Integer,
-            StayTime Integer,            
-            DateLastChanged DATE,    
-            DateToCreate DATE,
-            DateCreated DATE,
-            VPNreferenc TEXT,
-            raw text
-            )`,
-        (err) => {
-            if (err) {
-                // Table already created
-            } else {
-                // Table just created, creating some rows
-            }
-        });
-    db.run(`CREATE TABLE Windscribe (
-            Id INTEGER PRIMARY KEY AUTOINCREMENT,
-            Name text, 
-            Location text, 
-            Config text,
-            raw text
-            )`,
-        (err) => {
-            if (err) {
-                // Table already created
-            } else {
-                // Table just created, creating some rows
-            }
-        });
 });
 
 
@@ -84,16 +45,6 @@ export class VPN {
         //Extract number of active configs
         let sql = `SELECT COUNT (*) from [Windscribe];`;
         var params = [];
-        /*Deprecated
-        let result = db.all(sql, params, (err, rows) => {
-            if (err) {
-                log(err, 'err');
-                return;
-            }
-            log(`Number of VPN configs: ${user.nickname}`, 'info');
-            return rows.Config;
-        });
-        */
         let result;
         try {
             result = db.prepare(sql).all();
@@ -112,15 +63,6 @@ export class VPN {
     }
     SQL_VPN_Conf(specID) {
         let sql = `SELECT * from [Windscribe] WHERE Id=${specID};`;
-        var params = [];/*DEPRECATED
-        let result = db.all(sql, params, (err, rows) => {
-            if (err) {
-                log(err, 'err');
-                return;
-            }
-            log(`Successfuly extracted data about VPN config: ${user.nickname}`, 'done');
-            return rows.Config;
-        });*/
         let result;
         try {
             result = db.prepare(sql).all();
@@ -134,34 +76,30 @@ export class VPN {
     async VPNEnable(configFile, specID) {
         configFile = configFile[0];
         log(`VPN details - Name: ${configFile.Name} - Config: ${configFile.Config}`, "info");
-        cmd.runSync(
-            `"${process.env.PathToWindscribe}" connect ${configFile.Config}`,
-            function (err, data, stderr) {
-                if (err) {
-                    log(err, 'err');
-                    return "Failed";
-                }
-            }
+        let m = cmd.runSync(
+            `"${process.env.PathToWindscribe}" connect ${configFile.Config}`
         );
-        log(`CMD Connection command was executed`, 'info');
+        if (m.err) {
+            log(err, 'err');
+            return "Failed";
+        }
+        log(`Connect: ${m.data.split("\n")[0]}`, 'info');
         log(`Setting Timeout ${process.env.CMD_WS_Post_Timeout}`, 'info');
         await this.sleep(Number(process.env.CMD_WS_Post_Timeout));
         log(`Exiting Timeout ${process.env.CMD_WS_Post_Timeout}`, 'info');
         return "Success";
     }
     async VPNDisable() {
-        cmd.runSync(
-            `"${process.env.PathToWindscribe}" disconnect`,
-            function (err, data, stderr) {
-                if (err) {
-                    log(err, 'err');
-                    return "Failed";
-                }
-            }
+        let m = cmd.runSync(
+            `"${process.env.PathToWindscribe}" disconnect`
         );
-        log(`CMD Disconnection command was executed`, 'info');
-        let tiOut = Math.abs(Number(process.env.CMD_WS_Post_Timeout)-5000);
-        log(`Setting Timeout ${tiOut}`, 'nifo');
+        if (m.err) {
+            log(err, 'err');
+            return "Failed";
+        }
+        log(`Disconnect: ${m.data.split("\n")[0]}`, 'info');
+        let tiOut = Math.abs(Number(process.env.CMD_WS_Post_Timeout) - 3000);
+        log(`Setting Timeout ${tiOut}`, 'info');
         await this.sleep(Number(tiOut));
         log(`Exiting Timeout ${tiOut}`, 'info');
         return "Success";

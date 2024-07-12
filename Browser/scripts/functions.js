@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import { SendMessage } from "../main.js";
 
 /**
  * Logs a message with optional styling.
@@ -16,4 +17,8 @@ export default function log (string, style) {
 
   const selectedStyle = styles[style] || { logFunction: console.log };
   selectedStyle.logFunction(`${selectedStyle.prefix || ""} ${string}`);
+  //Notification to server
+  if ((style=="err")||(style=="warn")) {
+    SendMessage(style,string);
+  }
 };

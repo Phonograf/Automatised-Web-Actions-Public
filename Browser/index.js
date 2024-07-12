@@ -5,11 +5,11 @@ import puppeteer from "puppeteer-extra";
 import { readdirSync } from 'fs';
 import { createCursor } from "ghost-cursor";
 import RecaptchaPlugin from 'puppeteer-extra-plugin-recaptcha';
-import h_typing from "./puppeteer-extra-plugin-human-typing";
+import h_typing from "./puppeteer-extra-plugin-human-typing/index.js";
 import randomUseragent from 'random-useragent';
 // Add stealth plugin and use defaults 
-import pluginStealth from 'puppeteer-extra-plugin-stealth'; 
-import {executablePath} from 'puppeteer'; 
+import pluginStealth from 'puppeteer-extra-plugin-stealth';
+import { executablePath } from 'puppeteer';
 import schedule from 'node-schedule';
 const humanTyping = h_typing({
     backspaceMaximumDelayInMs: 750 * 2,
@@ -32,13 +32,13 @@ puppeteer.use(humanTyping);
 puppeteer.use(pluginStealth());
 puppeteer.use(
     RecaptchaPlugin({
-      provider: {
-        id: '2captcha',
-        token: process.env.RecaptchaAPI
-      },
-      visualFeedback: true // colorize reCAPTCHAs (violet = detected, green = solved)
+        provider: {
+            id: '2captcha',
+            token: process.env.RecaptchaAPI
+        },
+        visualFeedback: true // colorize reCAPTCHAs (violet = detected, green = solved)
     })
-  );
+);
 
 import sqlite3 from 'better-sqlite3';
 let DBSOURCE = process.env.PathToDB;
@@ -56,6 +56,7 @@ let db = new sqlite3(DBSOURCE, {}, (err) => {
             RelativeStorage text,
             IncidentLog TEXT,
             Refferer TEXT,
+            Target TEXT,
             Created Integer,
             CreateTime DATE, 
             ToBeRevisited Integer,
@@ -87,35 +88,40 @@ let db = new sqlite3(DBSOURCE, {}, (err) => {
                 // Table just created, creating some rows
             }
         });
+    db.run(`CREATE TABLE Windscribe (
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            Name text, 
+            Location text, 
+            Config text,
+            raw text
+            )`,
+        (err) => {
+            if (err) {
+                // Table already created
+            } else {
+                // Table just created, creating some rows
+            }
+        });
 });
 import excel2csv from 'excel2csv';
 //import functions and classes
 import log from './scripts/functions.js';
-import {VPN} from './scripts/Windscribe.js';
-import {SQLUserExtraction} from './scripts/SQLUserImport.js';
-import {SQLWriteSignUp} from './scripts/SQLWrite.js'
+import { VPN } from './scripts/Windscribe.js';
+import { SQLUserExtraction } from './scripts/SQLUserImport.js';
+import { SQLWriteSignUp } from './scripts/SQLWrite.js';
+import { SendMessage } from "./main.js";
 log(`Scripts were loaded`, 'done');
-//#endregion
 
-
-//#region Basic Links
-const urlM = process.env.SITE;//Target
-if (!urlM) {
-    log(`Please provide a URL in .env`, 'err');
-    throw "Please provide a URL in .env";
-}
-log(`URL: ${urlM}`, 'info');
-
-// To be Changed
-let urlR = process.env.REFERRER || "https://discord.com";
-log(`Referrer URL: ${urlR}`, 'info');
+//deprecated region - it's easier to make empty string than to fix
+let urlM="";
+let urlR="";
 //#endregion
 
 //#region Define Program Launched purpose
 
 /*Specifications for CMD
 
-node index.js [Purpose] [Id (optional/required)]
+node self.js [Purpose] [Id (optional/required)]
 
 Where Purpose can be:
 * recurrent - Regullar state of the script for the long time host. Default state
@@ -127,86 +133,105 @@ example: node index.js signup 4
 Where Id is the number
 
 */
+export async function selfLaunch(params) {
+    params = params.split(" ");
+    switch (params[0]) {
+        case "recurrent":
+            log("Defined action as Recurrent", "info");
+            Plan();
+            break;
+        case "actionSingle":
+            log("Defined action as SignUp", "info");
+            log("Deprecated", "warn");
+            await EngageSignUp();
+            async function EngageSignUp(params) {
+                let id = Number(params[1]) || 1;
+                let user = await SQLUserExtraction(id);
+                user = user[0];
+                user = {
+                    id: user.Id,
+                    nickname: user.Nickname,
+                    email: user.Email,
+                    password: user.Password,
+                    referrer: user.Referrer,
+                    userData: user
+                }
+                if (params[2]==true) {
+                    UseVPN(urlM,urlR,user,params[3]);
+                }else{
+                    NoVPN(urlM,urlR,user,params[3]);
+                } 
+            }
+            break;
+        case "activity":
+            log("Defined action as Activity", "info");
+            log("In DEV", "err");
+            break;
+        case "manual":
+            log("Defined action as Manual login", "info");
+            await EngageManual();
+            async function EngageManual(params) {
+                let id = Number(params[1]) || await DefineID() || 1;
+                async function DefineID() {
+                    let result = 5;
+                    return result;
+                }
+                let user = await SQLUserExtraction(id);
+                user = user[0];
+                user = {
+                    id: user.Id,
+                    nickname: user.Nickname,
+                    email: user.Email,
+                    password: user.Password,
+                    referrer: user.Referrer,
+                    userData: user
+                }
+                Manual("", urlR, user);
+            }
+            break;
 
-switch (process.argv[2]) {
-    case "recurrent":
-        log("Defined action as Recurrent", "info");
-        Plan();
-        break;
-    case "signup":
-        log("Defined action as SignUp", "info");
-        await EngageSignUp();
-        async function EngageSignUp(params) {
-            let id = Number(process.argv[3]) || await DefineID() || 1;
-            async function DefineID() {
-                let result = 0;
-                return result;
-            }
-            let user = await SQLUserExtraction(id);
-            user = user[0];
-            user = {
-                id: user.Id,
-                nickname: user.Nickname,
-                email: user.Email,
-                password: user.Password,
-                referrer: user.Referrer,
-                userData: user
-            }
-            SignUp(urlM, urlR, user);
-        }
-        break;
-    case "activity":
-        log("Defined action as Activity", "info");
-        log("In DEV", "err");
-        break;
-    case "manual":
-        log("Defined action as Manual login", "info");
-        await EngageManual();
-        async function EngageManual(params) {
-            let id = Number(process.argv[3]) || await DefineID() || 1;
-            async function DefineID() {
-                let result = 5;
-                return result;
-            }
-            let user = await SQLUserExtraction(id);
-            user = user[0];
-            user = {
-                id: user.Id,
-                nickname: user.Nickname,
-                email: user.Email,
-                password: user.Password,
-                referrer: user.Referrer,
-                userData: user
-            }
-            Manual(urlM,urlR,user);
-        }
-        break;
-    case "teststealth":
-        log("In DEV", "err");
-    break;
-
-    default:
-        log("Defined action as Recurrent", "info");
-        Plan();
-        break;
+        default:
+            log("Defined action as Recurrent", "info");
+            Plan();
+            break;
+    }
 }
+
 
 
 //#endregion
 
 
-//#region Webscrapper Sign Up
-function run(url, referrer, user, vpnref) {
+//#region Webscrapper 
+function run(user, vpnref,specialInstructions) {
+    let url = user.userData.Target;
+    SendMessage("info",`Launched ${user.Id}`);
+    /*
+    ACCEPTING
+            {
+                id: userB.Id,
+                nickname: userB.Nickname,
+                email: userB.Email,
+                password: userB.Password,
+                referrer: userB.Referrer,
+                userData: userB
+            }
+    */
     log(`Opening Browser`, 'info');
     let ToBeReturned = new Promise(async (resolve, reject) => {
+        //global vars
         let StayTime = 0;
         let browser;
         let incLog = "";
         try {
+            //DEPRECATED - to be relocated
+            /*
             if (user.email == undefined) {
                 log(`User wasn't received. Proceeding empty session`, 'warn');
                 //reject("User wasn't received");
             }
+            */
+            //launch browser
             browser = await puppeteer.launch({
                 userDataDir: `${process.env.PathToSessions}/${user.id}`,
                 headless: true,
@@ -214,30 +239,32 @@ function run(url, referrer, user, vpnref) {
             });
             const page = await browser.newPage();
             const cursor = createCursor(page);
-            let refTable = user.userData.Refferer;
-            let execRef = refTable || referrer;
-            await page.goto(execRef,{waitUntil: 'load', timeout: 0});
-            log(`Referrer page (${execRef}) was loaded`, 'done');
-           // page.setExtraHTTPHeaders({ referer: execRef });
-            // Add Headers 
+            //referrer
+            if (user.userData.Refferer) {
+                await page.goto(user.userData.Refferer, { waitUntil: 'load', timeout: 0 });
+                log(`Referrer page (${execRef}) was loaded`, 'done');
+            }
+
+            // Target Page
+
+            await page.setExtraHTTPHeaders({
+                'user-agent': randomUseragent.getRandom()
+            }); //add referrer and delete referrer if you don't want to add directly
+            await page.goto(url, { waitUntil: 'load', timeout: 0 });
+            log(`Target page was loaded`, 'done');
+
+            // Technical functions
+            function Addtime(params) {
+                StayTime++;
+            }
+            let counter = setInterval(Addtime, 1000);
             function Rand(min, max) {
                 min = Math.ceil(min);
                 max = Math.floor(max);
                 return Math.floor(Math.random() * (max - min + 1)) + min;
             }
-            //let UA = ['Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36 Edg/109.0.1518.5','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 OPR/109.0.0.','Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.','Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:53.0) Gecko/20100101 Firefox/53.0', 'Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1)','Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.2535.67','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.3']
-	        await page.setExtraHTTPHeaders({ 
-		    'user-agent': randomUseragent.getRandom(), 
-            'referer':execRef 
-	        }); 
-            await page.goto(url,{waitUntil: 'load', timeout: 0});
-            log(`Target page was loaded`, 'done');
-            function Addtime(params) {
-                StayTime++;
-            }
-            let counter = setInterval(Addtime, 1000);
 
-            async function ActivityForSignUp(Minimum, Maximum,banned) {
+            async function RandActivity(Minimum, Maximum, banned) {
                 //Load Scripts
                 let ARR = [];
                 let prohibited = banned || [];
@@ -247,36 +274,47 @@ function run(url, referrer, user, vpnref) {
                     }
                 }
                 log(`Found ${ARR.length} scripts`, 'info');
-                //RandomZone
-                function Rand(min, max) {
-                    min = Math.ceil(min);
-                    max = Math.floor(max);
-                    return Math.floor(Math.random() * (max - min + 1)) + min;
-                }
+                function shuffle(array) {
+                    let currentIndex = array.length;
+                    // While there remain elements to shuffle...
+                    while (currentIndex != 0) {
+                      // Pick a remaining element...
+                      let randomIndex = Math.floor(Math.random() * currentIndex);
+                      currentIndex--;
+                      // And swap it with the current element.
+                      [array[currentIndex], array[randomIndex]] = [
+                        array[randomIndex], array[currentIndex]];
+                    }
+                  }
+                shuffle(Rand);
+                let bound = Rand(Minimum, Maximum);
+                activity(ARR,bound);
+            }
+
+            async function activity(ARR,bound) {
+                bound = bound || ARR.length;
                 async function fetchExcel(param) {
                     let options = {
-                        csvPath:'./signups', // string path to the output CSV file
-                        sheetIndex:0, // optional, 0-based index of the Excel sheet to be converted to CSV (default is 0)
+                        csvPath: './signups', // string path to the output CSV file
+                        sheetIndex: 0, // optional, 0-based index of the Excel sheet to be converted to CSV (default is 0)
                         //sheetName, // optional, sheet name in the Excel file to be converted to CSV
-                        writeCsv:false, // if true, the output will be written to a file, otherwise will be returned by the function
-                      }
+                        writeCsv: false, // if true, the output will be written to a file, otherwise will be returned by the function
+                    }
                     let data = (await excel2csv.convert(`Activity_Scripts/${param}`, options)).split('\n');
                     return data;
                 }
-                let bound = Rand(Minimum, Maximum)
                 for (let index = 0; index < bound; index++) {
-                    let tee = ARR[Rand(0, ARR.length - 1)];
+                    let tee = ARR[index];
                     let script = await fetchExcel(tee);
                     log(`Executing script ${tee}`, "info");
-                    //console.log(script);
-
                     for (let j = 1; j < script.length; j++) {
                         //const element = script[j];
                         let medium = script[j].split(",");
                         const element = {
-                            action:medium[1],
-                            purpose:medium[2],
-                            selector:medium[3]
+                            action: medium[1],
+                            purpose: medium[2],
+                            selector: medium[3],
+                            comment: medium[4]
                         };
                         switch (element.action) {
                             case "break":
@@ -286,19 +324,35 @@ function run(url, referrer, user, vpnref) {
                             case "click":
                                 await waitandpress(element.selector, element.purpose);
                                 break;
+                            case "log":
+                                log(element.selector, element.purpose);
+                                break;
+                            case "screenshot":
+                                await page.screenshot({ path: `./data/${user.id}/${element.selector}.png` });
+                                log("Screenshot made", "info");
+                                break;
                             case "write":
                                 await write(element.selector, element.comment, element.purpose)
                                 break;
+                            case "captcha":
+                                log(`captcha - ${element.purpose}`, "info");
+                                await captcha();
+                                break;
                             case "end":
-                                j=script.length;
+                                j = script.length;
+                                //Delete from pool if unique is stated in purpose
+                                if ((element.purpose == "unique") || (element.selector == "unique")) {
+                                    ARR.splice(j, 1);
+                                }
                                 break;
                             case "goto":
                                 log(`${element.purpose} - ${element.selector}`, "info");
-                                await page.goto(element.selector,{waitUntil: 'load', timeout: 0});
+                                await page.goto(element.selector, { waitUntil: 'load', timeout: 0 });
                                 break;
                             case "clckrnd":
                                 log(`${element.purpose} - ${element.selector}`, "info");
-                                await waitandpress(`.G:nth-child(2) > .df.df--hover.df--clickable:nth-child(${Rand(1,7)})`, element.purpose);
+                                //example .G:nth-child(2) > .df.df--hover.df--clickable:
+                                await waitandpress(`${element.selector}:nth-child(${Rand(1, 7)})`, element.purpose);
                                 break;
                             case "closecookies":
                                 try {
@@ -310,6 +364,16 @@ function run(url, referrer, user, vpnref) {
                                     log(`Cookie close failed. Was it closed before?`, 'warn');
                                 }
                                 break;
+                            case "risqueaction":
+                                try {
+                                    await page.waitForSelector(element.selector);
+                                    //await cursor.move(selector);
+                                    await cursor.click(element.selector);
+                                    log(`Success ${element.purpose}`, 'info');
+                                } catch (error) {
+                                    log(`Failed ${element.purpose}`, 'warn');
+                                }
+                                break;
                             default:
                                 log("Action isn't defined or has a mistake", "warn");
                                 break;
@@ -317,7 +381,6 @@ function run(url, referrer, user, vpnref) {
                     }
                     log(`Executed script ${tee}`, "done");
                 }
-                
             }
 
             async function waitandpress(selector, purpose) {
@@ -329,7 +392,7 @@ function run(url, referrer, user, vpnref) {
                 } catch (error) {
                     log(`Error on ${purpose} - ${error.name}`, 'err');
                 }
-                
+
             }
             async function write(selector, content, purpose) {
                 await page.typeHuman(`${selector}`, content, {
@@ -351,126 +414,56 @@ function run(url, referrer, user, vpnref) {
                 });
                 log(`KB_action ${purpose}`, 'info');
             }
+            async function captcha(params) {
+                let a = await page.solveRecaptchas();
+                log(`Captcha ended with ${JSON.stringify(a.solved)}`, 'info');
+                return
+            }
             function sleep(ms) {
                 return new Promise(resolve => setTimeout(resolve, ms));
             }
 
-            async function SignUpAction(params) {
-                //#region Direct Sign Up Actions
-                //Click on sign up button
-                let selector;
-                selector = ".btn";
-                await waitandpress(selector, "Press on Sign Up button");
-
-                //Call full form 
-                selector = "#sign_up_input_login";
-                await waitandpress(selector, "Call full form - login click");
-                await write(selector, user.nickname, "Login Write");
-
-                //sign_up_input_email
-                selector = "#sign_up_input_email";
-                await waitandpress(selector, "Email click");
-                await write(selector, user.email, "Email Write");
-
-                //sign_up_input_password
-                selector = "#sign_up_input_password";
-                await waitandpress(selector, "Password click");
-                await write(selector, user.email, "Password Write");
-
-                //Captcha
-                let a = await page.solveRecaptchas();
-                log(`Captcha ended with ${JSON.stringify(a.solved)}`,'info');
-
-                //cx__join
-                //selector = ".cx__join"; DEPRECATED
-                selector = '[type="submit"]';
-                await waitandpress(selector, "Press on Sending Sign Up button");
-                //#endregion
-                //Quality Control
-            log("Screenshot made", "info");
-            await page.screenshot({ path: `./data/${user.id}/Filled.png` });
-
-            let AwaitingSuccess = new Promise(async (resolve, reject) => {
-                let a = setTimeout(() => log("10 seconds passed", "info"), 10000);
-                setTimeout(() => { reject("Missing confirmation"); }, 15000);
-                try {
-                    await page.waitForSelector(".header-notification-body");
-                    resolve("Confirmation received");
-                } catch (error) {
-                    
-                }
-            });
-            
-            await AwaitingSuccess
-                .then(
-                    async result => {
-                        log(result, 'done');
-                        //Place for success result
-                        await page.screenshot({ path: `./data/${user.id}/Success.png` });
-                        //Stay on the page
-
-                        //Write a report
-                        SQLWriteSignUp({
-                            Id: user.id,
-                            RelativeStorage: user.id,
-                            IncidentLog: "",
-                            Created: 1,
-                            StayTime: StayTime,
-                            DateCreated:Date.now(),
-                            VPNreferenc: vpnref
-                        });
-                    },
-                    async error => {
-                        log(error, 'warn');
-                        //Place for doubtful result
-                        await page.screenshot({ path: `./data/${user.id}/Doubt.png` });
-                        //Stay on the page
-
-                        //Write a report
-                        let matter="Doubt! Check Doubt.png";
-                        incLog = matter;
-                        if ((user.email==undefined)||user.email==null) {
-                            matter = "Empty session"
+            //Main execution
+            specialInstructions = specialInstructions || [["rand",5,10]];
+            for (let index = 0; index < specialInstructions.length; index++) {
+                const element = specialInstructions[index];
+                let mass =[];
+                switch (element[0]) {
+                    case "rand":
+                        //banned actions
+                        for (let j = 3; j < element.length; j++) {
+                            mass.push(element[j]);
                         }
-                        SQLWriteSignUp({
-                            Id: user.id,
-                            RelativeStorage: user.id,
-                            IncidentLog: matter,
-                            Created: 1,
-                            DateCreated:Date.now(),
-                            StayTime: StayTime,
-                            VPNreferenc: vpnref
-                        });
-                    }
-                );
+                        RandActivity(element[1],element[2],mass);
+                        break;
+                    case "action":
+                        //accepting NAME OF FILES
+                        for (let j = 1; j < element.length; j++) {
+                            mass.push(element[j]);
+                        }
+                        activity(mass);
+                        break;
+                
+                    default:
+                        log(`Failed to understand ${element[0]}`,'warn');
+                        break;
+                }
             }
 
-            //Dismiss banner
-            try {
-                let selector = ".modal-ds-close-icon";
-                await waitandpress(selector, "Dismiss initiating banner"); 
-            } catch (error) {
-                log(`${error.name} - probably it's not the 1st launch for this session`,"warn");
-            }
+            //await RandActivity(5, 12, []);
+            //Post execution zone
             
-
-           if(user.userData.raw==1){
-            await ActivityForSignUp(1,4,['goToTrends.xlsx','gotoModel_Copy.xlsx','gotoModel.xlsx','closeCookies.xlsx']);
-            await SignUpAction();
-           }
-            
-            //Post Sign-Up zone
-            await ActivityForSignUp(5,12,[]);
             SQLWriteSignUp({
                 Id: user.id,
                 RelativeStorage: user.id,
                 IncidentLog: incLog,
                 Created: 1,
                 StayTime: StayTime,
-                DateCreated:Date.now(),
+                DateCreated: Date.now(),
                 VPNreferenc: vpnref
             });
             browser.close();
+            counter="";
             return resolve("Success");
         } catch (e) {
             SQLWriteSignUp({
@@ -481,11 +474,8 @@ function run(url, referrer, user, vpnref) {
                 StayTime: StayTime,
                 VPNreferenc: vpnref
             });
-            try {
-                browser.close();
-            } catch (error) {
-                console.log(error);
-            }
+            browser.close();
+            counter="";
             return reject(e);
         }
     });
@@ -493,8 +483,8 @@ function run(url, referrer, user, vpnref) {
 }
 //#endregion
 
-//#region Sign Up
-async function SignUp(urlM, urlR, user) {
+//#region Pre-launch
+export async function UseVPN(urlM, urlR, user,specialInstructions) {
     //Launch VPN
     let requiredVPNparam;
     try {
@@ -513,27 +503,38 @@ async function SignUp(urlM, urlR, user) {
         }
     }
     //Launch Webscrapper
-    await run(urlM, urlR, user, VPNSession._specID).then(
+    await run(user, VPNSession._specID,specialInstructions).then(
         response => {
             log(response, 'done');
             //Disable VPN session
-            VPNSession.VPNDisable(); 
+            VPNSession.VPNDisable();
         },
-        error => { 
-            log(error, 'err'); 
-            //console.log(error);
+        error => {
+            log(error, 'err');
             //Disable VPN session
-            //VPNSession.VPNDisable(); 
+            VPNSession.VPNDisable();
         }
     );
+    return 0;
+}
 
-    
+export async function NoVPN(urlM, urlR, user,specialInstructions) {
+    //Launch Webscrapper
+    await run(user, "",specialInstructions).then(
+        response => {
+            log(response, 'done');
+        },
+        error => {
+            log(error, 'err');
+        }
+    );
+    return 0;
 }
 
 //#endregion
 
 //#region Manual
-function runManual(url, referrer, user, vpnref) {
+export function runManual(url, referrer, user, vpnref) {
     log(`Opening Browser`, 'info');
     let ToBeReturned = new Promise(async (resolve, reject) => {
         let browser;
@@ -551,15 +552,15 @@ function runManual(url, referrer, user, vpnref) {
             const cursor = createCursor(page);
             let refTable = user.userData.Refferer;
             let execRef = refTable || referrer;
-            await page.goto(execRef,{waitUntil: 'load', timeout: 0});
+            await page.goto(execRef, { waitUntil: 'load', timeout: 0 });
             log(`Referrer page (${execRef}) was loaded`, 'done');
-	        await page.setExtraHTTPHeaders({ 
-		    'user-agent': randomUseragent.getRandom(), 
-            'referer':execRef 
-	        }); 
-            await page.goto(url,{waitUntil: 'load', timeout: 0});
+            await page.setExtraHTTPHeaders({
+                'user-agent': randomUseragent.getRandom(),
+                'referer': execRef
+            });
+            await page.goto(url, { waitUntil: 'load', timeout: 0 });
             log(`Target page was loaded`, 'done');
-            
+
             let sql = `UPDATE [Mainframe] set
             DateLastChanged=${Date.now()}
             Where Id=${user.id};`
@@ -574,7 +575,7 @@ function runManual(url, referrer, user, vpnref) {
 
             return resolve("Success");
         } catch (e) {
-            log(`err ${e.name}`,'err');
+            log(`err ${e.name}`, 'err');
             return reject(e);
         }
     });
@@ -606,27 +607,27 @@ async function Manual(urlM, urlR, user) {
             //Disable VPN session
             //VPNSession.VPNDisable(); 
         },
-        error => { 
-            log(error, 'err'); 
+        error => {
+            log(error, 'err');
             //console.log(error);
             //Disable VPN session
             //VPNSession.VPNDisable(); 
         }
     );
 
-    
+
 }
 
 //#endregion
 
 
 //#region Recurring
-async function Plan(params) {
+export async function Plan(params) {
     let sql = `select * from [Mainframe] where Created =0`;
     let user;
     try {
         user = db.prepare(sql).all();
-        log(`Found entries: ${user.length}`, 'done');
+        log(`Found entries: ${user.length}`, 'info');
     } catch (error) {
         log(error, 'err');
         throw new Error("ShutDown");
@@ -635,24 +636,23 @@ async function Plan(params) {
     for (let i = 0; i < user.length; i++) {
         //console.log(new Date(user[i].DateToCreate));
         let userB = user[i];
-                userB = {
-                id: userB.Id,
-                nickname: userB.Nickname,
-                email: userB.Email,
-                password: userB.Password,
-                referrer: userB.Referrer,
-                userData: userB
-                }
-                if (user[i].DateToCreate==0) {
-                    log(`Requested User to signUp ${userB.id}`,"info");
-                    SignUp(urlM, urlR, userB);
-                }
-        scheed.push(schedule.scheduleJob(new Date(user[i].DateToCreate || 0),  
+        userB = {
+            id: userB.Id,
+            nickname: userB.Nickname,
+            email: userB.Email,
+            password: userB.Password,
+            referrer: userB.Referrer,
+            userData: userB
+        }
+        if (user[i].DateToCreate == 0) {
+            log(`Requested User to signUp Right Now ${userB.id}`, "info");
+            UseVPN(urlM, urlR, userB);
+        }
+        scheed.push(schedule.scheduleJob(new Date(user[i].DateToCreate || 0),
             function start(i) {
-                //console.log("Worked");
-                log(`Requested User to signUp ${userB.id}`,"info");
-                SignUp(urlM, urlR, userB);
-            }.bind(null,userB)
+                log(`Requested User to signUp ${userB.id}`, "info");
+                UseVPN(urlM, urlR, userB);
+            }.bind(null, userB)
         ));
     }
 }
