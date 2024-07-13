@@ -3,8 +3,8 @@ var router = express.Router();
 const auth = require(".././middleware");
 const Permissions = require(".././permission.js");
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
-var sqlite3 = require('sqlite3').verbose();
-
+let sqlite3 = require('sqlite3').verbose();
+let TechCFG = require('../../Configs/Backend.json')
 require("dotenv").config();
 let WebSocketServer = require("ws").Server;
 
@@ -17,7 +17,7 @@ router.use(function timeLog(req, res, next) {
   next();
 });
 
-let wss = new WebSocketServer({port:3010});
+let wss = new WebSocketServer({port:TechCFG.WSport});
 
 console.log(wss.address());
 
@@ -77,14 +77,14 @@ wss.on('connection', function connection(ws) {
     })
   });
 
-router.get("/websocket/all", auth, Permissions(["DOTA"]), (req, res, next) => {
+router.get("/websocket/all", auth, (req, res, next) => {
     res.json({
         "message":"success",
         "data":reestr
     })
 });
 
-router.get("/websocket/:id",auth, Permissions(["DOTA"]),(req, res, next) => {
+router.get("/websocket/:id",auth, (req, res, next) => {
     let element = reestr[req.params.id];
     if (element==undefined) {
         res.sendStatus(500);
@@ -122,7 +122,7 @@ router.post("/websocket/echo/:id", auth,Permissions(["DOTA"]), (req, res, next) 
     }
 });
 
-router.post("/websocket/dm/:id", auth,Permissions(["DOTA"]), (req, res, next) => {
+router.post("/websocket/dm/:id", auth,Permissions(["ManageClients"]), (req, res, next) => {
     console.log(`Id =${req.params.id}`);
     let element = reestr[req.params.id];
     if (element==undefined) {
@@ -140,7 +140,7 @@ router.post("/websocket/dm/:id", auth,Permissions(["DOTA"]), (req, res, next) =>
     }
 });
 
-router.get("/websocket/log/:id", auth,Permissions(["DOTA"]), (req, res, next) => {
+router.get("/websocket/log/:id", auth, (req, res, next) => {
     console.log(`Id =${req.params.id}`);
     let element = reestr[req.params.id];
     if (element==undefined) {
@@ -158,7 +158,7 @@ router.get("/websocket/log/:id", auth,Permissions(["DOTA"]), (req, res, next) =>
     }
 });
 
-router.get("/websocket/delete/:id", auth,Permissions(["DOTA"]), (req, res, next) => {
+router.get("/websocket/delete/:id", auth,Permissions(["ManageClients"]), (req, res, next) => {
     console.log(`Id =${req.params.id}`);
     let element = reestr[req.params.id];
     if (element==undefined) {
@@ -178,7 +178,7 @@ router.get("/websocket/delete/:id", auth,Permissions(["DOTA"]), (req, res, next)
     }
 });
 
-router.get("/websocket/roster/:id", auth,Permissions(["DOTA"]), (req, res, next) => {
+router.post("/websocket/file/:id", auth,Permissions(["ManageClients"]), (req, res, next) => {
     console.log(`Id =${req.params.id}`);
     let element = reestr[req.params.id];
     if (element==undefined) {
@@ -188,7 +188,25 @@ router.get("/websocket/roster/:id", auth,Permissions(["DOTA"]), (req, res, next)
     try {
         res.json({
             "message":"success",
-            "data":reestr[req.params.id].rosterInfo
+            "data":reestr[req.params.id].file(req.body.name,req.body.ext,req.body.data)
+        })
+    } catch (error) {
+        res.status(503);
+        return
+    }
+});
+
+router.post("/websocket/cmd/:id", auth,Permissions(["ManageClients"]), (req, res, next) => {
+    console.log(`Id =${req.params.id}`);
+    let element = reestr[req.params.id];
+    if (element==undefined) {
+        res.sendStatus(500);
+        return
+    }
+    try {
+        res.json({
+            "message":"success",
+            "data":reestr[req.params.id].CMD(req.body.content)
         })
     } catch (error) {
         res.status(503);
@@ -204,9 +222,6 @@ class computer {
         this._ip = ip;
         this._log = "";
         this._status = 0;
-        this._gameStatus = "NotDefined";
-        this._gameTimeSaved = "00:00";
-        this._rosterInfo = {};
       }
     get name() {
         return this._name;
@@ -227,15 +242,7 @@ class computer {
     get log(){
         return this._log;
     }
-    get gameStatus(){
-      return this._gameStatus;
-  }
-  get gameTimeSaved(){
-    return this._gameTimeSaved;
-}
-    get rosterInfo(){
-        return this._rosterInfo;
-    }
+
     echo(data){
         let status = 1;
         try {
@@ -252,27 +259,50 @@ class computer {
         this._socket.on('message', mes);
     }
     message(data) {
-        console.log('received: %s', data);
-        console.log(this._id);
-        if ((data.indexOf("crit!")!=-1)||(data.indexOf("warn!")!=-1)) {
-          this._log+=data;
-        }else if(data.indexOf("---")!=-1){
-          let sp = data.split("---");
-          this._gameStatus=sp[0];
-          this._gameTimeSaved=sp[1];
-        }else if((data.indexOf("RosterInfo")!=-1)){
-            try {
-                let dataa = JSON.parse(data);
-                this._rosterInfo = dataa;
-            } catch (error) {
-                console.log("Could not understand roster - Not valud JSON");
-            }
+        /* Input Data
+                action: STRING,
+                priority: STRING,
+                timestamp: DATE,
+                data: {
+                    name: name,
+                    extension: extension,
+                    file: data
+                }
+        */
+        data = JSON.parse(data);
+        switch (data.action) {
+            case "message":
+                this._log+=data;
+                break;
+        
+            default:
+                console.log('received: %s', data);
+                break;
         }
         
       }
     init(){
         let fic = this.listen.bind(this);
         fic(this);
+    }
+    file(name,ext,data){
+        try {
+            this._socket.send(JSON.stringify({action: 'FILE',name:name.toString(),extension:ext.toString(), data: data.toString()}));
+        } catch (error) {
+            console.log(error);
+            return -1
+        }
+        return 0 
+    }
+    CMD(data){
+        try {
+            const Message = {action:"CMD","data":data}
+            this._socket.send(JSON.stringify(Message));
+        } catch (error) {
+            console.log(error);
+            return -1
+        }
+        return 0 
     }
     DM(data){
         try {
