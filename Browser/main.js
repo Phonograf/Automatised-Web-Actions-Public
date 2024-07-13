@@ -1,5 +1,10 @@
 import WebSocket from 'ws';
-import path from 'path';
+import * as pathER from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+let path = pathER;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 import fs from 'fs';
 import notifier from 'node-notifier';
 import cmd from 'node-cmd';
@@ -9,25 +14,27 @@ import FileReader from 'filereader';
 import { NoVPN, UseVPN, selfLaunch } from "./index.js";
 import log from './scripts/functions.js';
 import { SQLRaw } from './scripts/SQLraw.js';
+import { SQLUserExtraction } from './scripts/SQLUserImport.js';
 
 //Global var
-let currentDeploy;
+let wsClient;
+let ip;
+let iter;
 
 export function Deploy(params) {
     //IP resolve
-    let ip = "?";
+    ip = "?";
     try {
         let m = cmd.runSync(
             "ipconfig"
         );
         if (m.err) {
-            console.log(err);
+            log(`IP CMD Failed`, 'warn');
             return;
         }
         try {
             ip = (m.data.split("IPv4-")[1].split(": ")[1].split("\n")[0]);
         } catch (err) {
-            console.log("IP retry");
             try {
                 ip = (m.data.split("IPv4")[1].split(": ")[1].split("\n")[0]);
             } catch (error) {
@@ -39,12 +46,12 @@ export function Deploy(params) {
     } catch (error) {
         log('IP Failed', 'warn');
     }
-    //Iteration. 0 - new, 1+ - it exists. Probably Deprecated
-    let iter = process.env.npm_config_iter || params || 0;
-    console.log(`ini iter = ${iter}`);
+    //Iteration. 0 - new, 1+ - it exists. 
+    iter = process.env.npm_config_iter || params || 0;
+    log(`ini iter = ${iter}`,'info');
 
     //WS Open
-    let wsClient = new WebSocket(process.env.PathToWS);
+    wsClient = new WebSocket(process.env.PathToWS);
     wsClient.on('open', onConnect);
 }
 
@@ -63,6 +70,7 @@ function onConnect() {
     wsClient.on('message', function (message) {
         try {
             const jsonMessage = JSON.parse(message);
+            log(`Accepted message with ${jsonMessage.action}`,'info');
             switch (jsonMessage.action) {
                 case 'ECHO':
                     wsClient.send(jsonMessage.data);
@@ -71,7 +79,7 @@ function onConnect() {
                     notifier.notify({
                         title: 'Msg from admin',
                         message: jsonMessage.data,
-                        icon: path.join(__dirname, 'LogoWhite.png'),
+                        //icon: path.join(__dirname, 'LogoWhite.png'),
                         appID: "Epic Message Delivery"
                     });
                     break;
@@ -86,10 +94,10 @@ function onConnect() {
                                     timestamp: Date.now(),
                                     data: `${err.name} - ${err.message}`
                                 }));
-                                console.log(err);
+                                log(err,'err');
                                 return;
                             }
-                            console.log(data);
+                            log(`CMD command received ${data}`,'info');
                             wsClient.send(JSON.stringify({
                                 action: "FileCallback",
                                 priority: "done",
@@ -101,12 +109,12 @@ function onConnect() {
                     break;
                 case 'FILE':
                     let temp_ext = jsonMessage.extension || 'txt';
-                    let path = "./files/"
+                    let patht = "./files/"
                     if (temp_ext == "xlsx") {
-                        path = "./Activity_Scripts";
+                        patht = "./Activity_Scripts";
                     }
                     let temp_name = jsonMessage.name || 'abc';
-                    fs.writeFile(`${path}${temp_name}.${temp_ext}`, jsonMessage.data, (err) => {
+                    fs.writeFile(`${patht}${temp_name}.${temp_ext}`, jsonMessage.data, (err) => {
                         if (err) {
                             wsClient.send(JSON.stringify({
                                 action: "FileCallback",
@@ -116,7 +124,10 @@ function onConnect() {
                             }))
                         };
                     });
-                    console.log(`Saved to ./files/${temp_name}.${temp_ext}`);
+                    log(`Saved to ./files/${temp_name}.${temp_ext}`,'info');
+                    break;
+                case'SENDFILE':
+                SendFile(jsonMessage.data.name,jsonMessage.data.extension,jsonMessage.data.path);
                     break;
                 case "manual":
                     selfLaunch(`manual ${jsonMessage.data}`);
@@ -143,17 +154,17 @@ function onConnect() {
                     }
                     let user = engage(jsonMessage.id);
                     if (jsonMessage.data.vpn == true) {
-                        UseVPN("", "", user,jsonMessage.data.specialInstructions)
-                    }else{
-                        NoVPN("", "", user,jsonMessage.data.specialInstructions)
+                        UseVPN("", "", user, jsonMessage.data.specialInstructions)
+                    } else {
+                        NoVPN("", "", user, jsonMessage.data.specialInstructions)
                     }
                     break;
                 default:
-                    console.log('Unknown command');
+                    log('Unknown command','warn');
                     break;
             }
         } catch (error) {
-            console.log('Error', error);
+            log(error,'err');
         }
     });
 }

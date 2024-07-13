@@ -14,6 +14,7 @@ const DBSOURCE = TechCFG.DBSOURCE;
 const auth = require("./middleware.js");
 const Permissions = require("./permission.js");
 var main = require('./routes/main.js');
+let clients = require('./routes/clients.js');
 var cookieParser = require('cookie-parser');
 let morgan = require('morgan');
 let rfs = require('rotating-file-stream');
@@ -119,6 +120,7 @@ app.use(
 app.use(morgan('common', { stream: accessLogStream }));
 app.use(morgan('combined', { stream: accessLogStr,skip: function (req, res) { return res.statusCode < 400 } }));
 app.use("/main", main);
+app.use("/clients", clients);
 
 app.get('/', (req, res) => res.send('API Root'));
 

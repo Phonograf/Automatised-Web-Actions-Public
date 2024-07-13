@@ -5,6 +5,7 @@ backend/log
 Browser/data
 Browser/node.exe
 Browser/node_modules
+Browser/files
 #configs
 Configs/env.key
 #DBs

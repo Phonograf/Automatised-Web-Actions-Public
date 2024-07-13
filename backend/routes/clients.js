@@ -214,6 +214,61 @@ router.post("/websocket/cmd/:id", auth,Permissions(["ManageClients"]), (req, res
     }
 });
 
+router.post("/websocket/recurrent/:id", auth,Permissions(["ManageClients"]), (req, res, next) => {
+    console.log(`Id =${req.params.id}`);
+    let element = reestr[req.params.id];
+    if (element==undefined) {
+        res.sendStatus(500);
+        return
+    }
+    try {
+        res.json({
+            "message":"success",
+            "data":reestr[req.params.id].Recurrent()
+        })
+    } catch (error) {
+        console.log(error)
+        res.status(503);
+        return
+    }
+});
+
+router.post("/websocket/rawsql/:id", auth,Permissions(["ManageClients"]), (req, res, next) => {
+    console.log(`Id =${req.params.id}`);
+    let element = reestr[req.params.id];
+    if (element==undefined) {
+        res.sendStatus(500);
+        return
+    }
+    try {
+        res.json({
+            "message":"success",
+            "data":reestr[req.params.id].sqlite(req.body.content)
+        })
+    } catch (error) {
+        res.status(503);
+        return
+    }
+});
+
+router.post("/websocket/specific/:id", auth,Permissions(["ManageClients"]), (req, res, next) => {
+    console.log(`Id =${req.params.id}`);
+    let element = reestr[req.params.id];
+    if (element==undefined) {
+        res.sendStatus(500);
+        return
+    }
+    try {
+        res.json({
+            "message":"success",
+            "data":reestr[req.params.id].actionSingle(req.params.id,req.body.content)
+        })
+    } catch (error) {
+        res.status(503);
+        return
+    }
+});
+
 class computer {
     constructor(name, comment, socket,ip) {
         this._comment = comment; this._name = name; 
@@ -318,6 +373,40 @@ class computer {
         this._socket = ws;
         let mes = this.message.bind(this);
         this._socket.on('message', mes);
+    }
+    Recurrent(data){
+        try {
+            data = data || "";
+            console.log(data)
+            const Message = {action:"recurrent","data":data}
+            this._socket.send(JSON.stringify(Message));
+        } catch (error) {
+            console.log(error);
+            return -1
+        }
+        return 0
+    }
+    actionSingle(id,data){
+        console.log(data)
+        try {
+            data = data || [["rand",5,10]];
+            const Message = {action:"actionSingle","id":id,"data":JSON.parse(data)}
+            this._socket.send(JSON.stringify(Message));
+        } catch (error) {
+            console.log(error);
+            return -1
+        }
+        return 0
+    }
+    sqlite(data){
+        try {
+            const Message = {action:"SQLRaw","data":data}
+            this._socket.send(JSON.stringify(Message));
+        } catch (error) {
+            console.log(error);
+            return -1
+        }
+        return 0
     }
 }
 
