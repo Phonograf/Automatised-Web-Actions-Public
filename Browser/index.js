@@ -1,11 +1,11 @@
 //#region Imports
 import { config } from "dotenv";
-config();
+config({ path: `../Configs/.env.client` });
 import puppeteer from "puppeteer-extra";
 import { readdirSync } from 'fs';
 import { createCursor } from "ghost-cursor";
 import RecaptchaPlugin from 'puppeteer-extra-plugin-recaptcha';
-import h_typing from "./puppeteer-extra-plugin-human-typing/index.js";
+import h_typing from "./scripts/puppeteer-extra-plugin-human-typing/index.js";
 import randomUseragent from 'random-useragent';
 // Add stealth plugin and use defaults 
 import pluginStealth from 'puppeteer-extra-plugin-stealth';
@@ -241,19 +241,25 @@ function run(user, vpnref, specialInstructions) {
             });
             const page = await browser.newPage();
             const cursor = createCursor(page);
+            let headers ={}
 
             //referrer
             if (user.userData.Refferer) {
-                //await page.goto(user.userData.Refferer, { waitUntil: 'load', timeout: 0 });
-                log(`Referrer page (${user.userData.Refferer}) was loaded`, 'done');
+                if (process.env.VisitReferer) {
+                    await page.goto(user.userData.Refferer, { waitUntil: 'load', timeout: 0 }); 
+                }else{
+                    headers['Referer']=user.userData.Referrer;
+                }
+                log(`Referer page (${user.userData.Refferer}) was proceeded`, 'done');
+            }
+            // User agent plugin. IMPORTANT! CAPTCHA WON"T BE LOADED WITH USER AGENT
+            if(process.env.UserAgent==true){
+                headers['User-Agent']=randomUseragent.getRandom();
             }
 
             // Target Page
             log(url, 'done');
-            await page.setExtraHTTPHeaders({
-                'User-Agent': randomUseragent.getRandom(),
-                'Referer': user.userData.Refferer
-            }); //add referrer and delete referrer if you don't want to add directly
+            await page.setExtraHTTPHeaders(headers); 
             await page.goto(url, { waitUntil: 'load', timeout: 0 });
             log(`Target page was loaded`, 'done');
             
@@ -267,7 +273,7 @@ function run(user, vpnref, specialInstructions) {
                 max = Math.floor(max);
                 return Math.floor(Math.random() * (max - min + 1)) + min;
             }
-
+            //activities
             async function RandActivity(Minimum, Maximum, banned) {
                 //Load Scripts
                 let ARR = [];
@@ -299,7 +305,6 @@ function run(user, vpnref, specialInstructions) {
                 bound = bound || ARR.length;
                 async function fetchExcel(param) {
                     let options = {
-                        csvPath: './signups', // string path to the output CSV file
                         sheetIndex: 0, // optional, 0-based index of the Excel sheet to be converted to CSV (default is 0)
                         //sheetName, // optional, sheet name in the Excel file to be converted to CSV
                         writeCsv: false, // if true, the output will be written to a file, otherwise will be returned by the function
@@ -421,7 +426,6 @@ function run(user, vpnref, specialInstructions) {
                             case "closecookies":
                                 try {
                                     await page.waitForSelector(element.selector);
-                                    //await cursor.move(selector);
                                     await cursor.click(element.selector);
                                     log(`MS_CloseCookies ${element.purpose}`, 'info');
                                 } catch (error) {
@@ -430,8 +434,6 @@ function run(user, vpnref, specialInstructions) {
                                 break;
                             case "risqueaction":
                                 try {
-                                    //await page.waitForSelector(element.selector);
-                                    //await cursor.move(selector);
                                     await cursor.click('[type="submit"]');
                                     log(`Success ${element.purpose}`, 'info');
                                 } catch (error) {
@@ -551,6 +553,7 @@ function run(user, vpnref, specialInstructions) {
 export async function UseVPN(urlM, urlR, user, specialInstructions) {
     //Launch VPN
     let requiredVPNparam;
+    //checking passed params
     try {
         requiredVPNparam = user.userData.VPNreferenc;
     } catch (error) {
@@ -711,7 +714,12 @@ export async function Plan(params) {
         }
         if (user[i].DateToCreate == -1) {
             log(`Requested User to signUp Right Now ${userB.id}`, "info");
-            UseVPN(urlM, urlR, userB, specialtask);
+            if (process.env.VPNUsage==true) {
+                UseVPN(urlM, urlR, userB, specialtask);
+            }else{
+                NoVPN(urlM, urlR, userB, specialtask);
+            }
+            
         }
         scheed.push(schedule.scheduleJob(new Date(user[i].DateToCreate),
             function start(i) {
