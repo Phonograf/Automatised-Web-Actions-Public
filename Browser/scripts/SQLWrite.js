@@ -54,9 +54,10 @@ let db = new sqlite3(DBSOURCE, {}, (err) => {
 //#region Storing results
 export async function SQLWriteSignUp(params) {
     let DC ="";
-    if (params.DateCreated) {
-        DC = `DateCreated=${params.DateCreated},`
+    if (params.CreateTime) {
+        DC = `CreateTime=${params.CreateTime},`
     }
+    //format string
     params = {
         Id: params.Id || 0,
         RelativeStorage: params.Id || 0,
@@ -71,7 +72,6 @@ export async function SQLWriteSignUp(params) {
     RelativeStorage=${params.RelativeStorage},
     IncidentLog='${params.IncidentLog}',
     Created=${params.Created},
-    CreateTime=${params.CreateTime},
     StayTime=${params.StayTime},
     DateLastChanged=${params.DateLastChanged},
     ${DC}

@@ -20,9 +20,9 @@ const DBSOURCE = TechCFG.DBSOURCE;
 
 let db = new sqlite3(DBSOURCE, {}, (err) => {
   if (err) {
-      // Cannot open database
-      console.error(err.message);
-      throw err
+    // Cannot open database
+    console.error(err.message);
+    throw err
   }
   db.run(`CREATE TABLE Mainframe (
           Id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,8 +30,10 @@ let db = new sqlite3(DBSOURCE, {}, (err) => {
           Email text, 
           Password text,
           RelativeStorage text,
+          LinkedTo TEXT,
           IncidentLog TEXT,
           Refferer TEXT,
+          Target TEXT,
           Created Integer,
           CreateTime DATE, 
           ToBeRevisited Integer,
@@ -40,15 +42,16 @@ let db = new sqlite3(DBSOURCE, {}, (err) => {
           DateToCreate DATE,
           DateCreated DATE,
           VPNreferenc TEXT,
+          Plan TEXT,
           raw text
           )`,
-      (err) => {
-          if (err) {
-              // Table already created
-          } else {
-              // Table just created, creating some rows
-          }
-      });
+    (err) => {
+      if (err) {
+        // Table already created
+      } else {
+        // Table just created, creating some rows
+      }
+    });
   db.run(`CREATE TABLE VPN (
           Id INTEGER PRIMARY KEY AUTOINCREMENT,
           Name text, 
@@ -56,13 +59,13 @@ let db = new sqlite3(DBSOURCE, {}, (err) => {
           Config text,
           raw text
           )`,
-      (err) => {
-          if (err) {
-              // Table already created
-          } else {
-              // Table just created, creating some rows
-          }
-      });
+    (err) => {
+      if (err) {
+        // Table already created
+      } else {
+        // Table just created, creating some rows
+      }
+    });
 });
 //init bodyparser
 app.use(bodyParser.json());
@@ -71,15 +74,15 @@ app.use(bodyParser.json());
 // init Logs
 
 var accessLogStr = rfs.createStream(`important.log`, {
-    interval: '3d', // rotate 
-    path: path.join(__dirname, 'log')
+  interval: '3d', // rotate 
+  path: path.join(__dirname, 'log')
 });
 var accessLogStream = rfs.createStream(`access.log`, {
-    interval: '1d', // rotate 
-    path: path.join(__dirname, 'log')
-  });
+  interval: '1d', // rotate 
+  path: path.join(__dirname, 'log')
+});
 app.use(morgan('common', { stream: accessLogStream }));
-app.use(morgan('combined', { stream: accessLogStr,skip: function (req, res) { return res.statusCode < 400 } }));
+app.use(morgan('combined', { stream: accessLogStr, skip: function (req, res) { return res.statusCode < 400 } }));
 
 //Init CORS (restricted localhost)
 
@@ -94,10 +97,10 @@ var corsOptions = {
       }
     }
   },
-  maxAge:10000
+  maxAge: 10000
 }
 app.use(
-    cors(corsOptions)
+  cors(corsOptions)
 );
 
 //REST
@@ -112,43 +115,43 @@ app.use(
 |- /raw - Last priority but flexible requests
 */
 
-app.get('/status',auth, (req, res) => {
+app.get('/status', auth, (req, res) => {
   res.send('Online');
 })
 
 app.get("/logs/important", auth, (req, res, next) => {
-    fs.readFile('./log/important.log', 'utf8', function(err, data){ 
-      res.status(200).send(data)
-    }); 
+  fs.readFile('./log/important.log', 'utf8', function (err, data) {
+    res.status(200).send(data)
+  });
 });
 
 app.get("/logs/regular", auth, (req, res, next) => {
-    fs.readFile('./log/access.log', 'utf8', function(err, data){ 
-      res.status(200).send(data)
-    }); 
+  fs.readFile('./log/access.log', 'utf8', function (err, data) {
+    res.status(200).send(data)
+  });
 });
 
-app.post("/raw", auth,(req, res, next) => {
+app.post("/raw", auth, (req, res, next) => {
   try {
-      console.log(req.body); //Losing req.body
-      let sql = req.body.sql || req.headers.sql;
-      var params = [];
-      db.all(sql, params, (err, rows) => {
+    console.log(req.body); //Losing req.body
+    let sql = req.body.sql || req.headers.sql;
+    var params = [];
+    db.all(sql, params, (err, rows) => {
       if (err) {
-        res.status(400).json({"error":err.message});
+        res.status(400).json({ "error": err.message });
         return;
       }
       res.setHeader("Content-Type", "application/json");
       res.json({
-          "message":"success",
-          "data":rows
+        "message": "success",
+        "data": rows
       })
     });
   } catch (error) {
-      console.log(error);
-      res.status(503);
+    console.log(error);
+    res.status(503);
   }
-  
+
 });
 
 app.listen(port, () => {

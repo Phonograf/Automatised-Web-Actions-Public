@@ -103,13 +103,14 @@ let db = new sqlite3(DBSOURCE, {}, (err) => {
             }
         });
 });
-import excel2csv from 'excel2csv';
+
 //import functions and classes
 import log from './scripts/functions.js';
 import { VPN } from './scripts/Windscribe.js';
 import { SQLUserExtraction } from './scripts/SQLUserImport.js';
 import { SQLWriteSignUp } from './scripts/SQLWrite.js';
 import { SendMessage } from "./main.js";
+import {fetchExcel} from './scripts/casesForActivity/fetchExcel.js';
 log(`Scripts were loaded`, 'done');
 
 //deprecated region - it's easier to make empty string than to fix
@@ -303,29 +304,11 @@ function run(user, vpnref, specialInstructions) {
 
             async function activity(ARR, bound) {
                 bound = bound || ARR.length;
-                async function fetchExcel(param) {
-                    let options = {
-                        sheetIndex: 0, // optional, 0-based index of the Excel sheet to be converted to CSV (default is 0)
-                        //sheetName, // optional, sheet name in the Excel file to be converted to CSV
-                        writeCsv: false, // if true, the output will be written to a file, otherwise will be returned by the function
-                    }
-                    //temp 
-                    let data;
-                    try {
-                        data = (await excel2csv.convert(`Activity_Scripts/${param}`, options)).split('\n');
-                        return data;
-                    } catch (error) {
-                        log(error, 'err');
-                        return [];
-                    }
-
-                }
                 for (let index = 0; index < bound; index++) {
                     let tee = ARR[index];
                     let script = await fetchExcel(tee);
                     log(`Executing script ${tee}`, "info");
                     for (let j = 1; j < script.length; j++) {
-                        //const element = script[j];
                         let medium = script[j].split(",");
                         const element = {
                             action: medium[1],
@@ -333,6 +316,7 @@ function run(user, vpnref, specialInstructions) {
                             selector: medium[3],
                             comment: medium[4]
                         };
+                        //Should be deprecated
                         switch (element.action) {
                             case "break":
                                 log(`${element.purpose} - ${element.selector}`, "info");
@@ -518,16 +502,13 @@ function run(user, vpnref, specialInstructions) {
                 }
             }
 
-            //await RandActivity(5, 12, []);
-            //Post execution zone
-
             SQLWriteSignUp({
                 Id: user.id,
                 RelativeStorage: user.id,
                 IncidentLog: incLog,
                 Created: 1,
                 StayTime: StayTime,
-                DateCreated: Date.now(),
+                CreateTime: Date.now(),
                 VPNreferenc: vpnref
             });
             browser.close();
@@ -536,8 +517,8 @@ function run(user, vpnref, specialInstructions) {
             SQLWriteSignUp({
                 Id: user.id,
                 RelativeStorage: user.id,
-                IncidentLog: e.name,
-                Created: 1,
+                IncidentLog: `${e.name}- ${e.message}`,
+                Created: -1,
                 StayTime: StayTime,
                 VPNreferenc: vpnref
             });
