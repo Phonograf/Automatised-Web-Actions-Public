@@ -261,7 +261,7 @@ router.post("/websocket/specific/:id", auth,Permissions(["ManageClients"]), (req
     try {
         res.json({
             "message":"success",
-            "data":reestr[req.params.id].actionSingle(req.params.id,req.body.content)
+            "data":reestr[req.params.id].actionSingle(req.body.id,req.body.content)
         })
     } catch (error) {
         res.status(503);
@@ -390,7 +390,7 @@ class computer {
         console.log(data)
         try {
             data = data || [["rand",5,10]];
-            const Message = {action:"actionSingle","id":id,"data":JSON.parse(data)}
+            const Message = {action:"actionSingle","vpn":true,"id":id,"data":JSON.parse(data)}
             this._socket.send(JSON.stringify(Message));
         } catch (error) {
             console.log(error);

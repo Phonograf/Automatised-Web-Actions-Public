@@ -150,14 +150,15 @@ function onConnect() {
                             referrer: user.Referrer,
                             userData: user
                         }
+                        if (jsonMessage.vpn == true) {
+                            UseVPN("", "", user, jsonMessage.data.specialInstructions)
+                        } else {
+                            NoVPN("", "", user, jsonMessage.data.specialInstructions)
+                        }
                         return user
                     }
-                    let user = engage(jsonMessage.id);
-                    if (jsonMessage.data.vpn == true) {
-                        UseVPN("", "", user, jsonMessage.data.specialInstructions)
-                    } else {
-                        NoVPN("", "", user, jsonMessage.data.specialInstructions)
-                    }
+                    engage(jsonMessage.id);
+                    
                     break;
                 default:
                     log('Unknown command','warn');

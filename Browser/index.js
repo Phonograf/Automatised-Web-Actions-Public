@@ -113,8 +113,9 @@ import { SendMessage } from "./main.js";
 log(`Scripts were loaded`, 'done');
 
 //deprecated region - it's easier to make empty string than to fix
-let urlM="";
-let urlR="";
+let urlM = "";
+let scheed = [];
+let urlR = "";
 //#endregion
 
 //#region Define Program Launched purpose
@@ -156,11 +157,12 @@ export async function selfLaunch(params) {
                     referrer: user.Referrer,
                     userData: user
                 }
-                if (params[2]==true) {
-                    UseVPN(urlM,urlR,user,params[3]);
-                }else{
-                    NoVPN(urlM,urlR,user,params[3]);
-                } 
+                console.log(user);
+                if (params[2] == true) {
+                    UseVPN(urlM, urlR, user, params[3]);
+                } else {
+                    NoVPN(urlM, urlR, user, params[3]);
+                }
             }
             break;
         case "activity":
@@ -203,9 +205,9 @@ export async function selfLaunch(params) {
 
 
 //#region Webscrapper 
-function run(user, vpnref,specialInstructions) {
+function run(user, vpnref, specialInstructions) {
     let url = user.userData.Target;
-    SendMessage("info",`Launched ${user.Id}`);
+    SendMessage("info", `Launched ${user.Id}`);
     /*
     ACCEPTING
             {
@@ -234,25 +236,27 @@ function run(user, vpnref,specialInstructions) {
             //launch browser
             browser = await puppeteer.launch({
                 userDataDir: `${process.env.PathToSessions}/${user.id}`,
-                headless: true,
+                headless: false,
                 executablePath: executablePath()
             });
             const page = await browser.newPage();
             const cursor = createCursor(page);
+
             //referrer
             if (user.userData.Refferer) {
-                await page.goto(user.userData.Refferer, { waitUntil: 'load', timeout: 0 });
-                log(`Referrer page (${execRef}) was loaded`, 'done');
+                //await page.goto(user.userData.Refferer, { waitUntil: 'load', timeout: 0 });
+                log(`Referrer page (${user.userData.Refferer}) was loaded`, 'done');
             }
 
             // Target Page
-
+            log(url, 'done');
             await page.setExtraHTTPHeaders({
-                'user-agent': randomUseragent.getRandom()
+                'User-Agent': randomUseragent.getRandom(),
+                'Referer': user.userData.Refferer
             }); //add referrer and delete referrer if you don't want to add directly
             await page.goto(url, { waitUntil: 'load', timeout: 0 });
             log(`Target page was loaded`, 'done');
-
+            
             // Technical functions
             function Addtime(params) {
                 StayTime++;
@@ -278,20 +282,20 @@ function run(user, vpnref,specialInstructions) {
                     let currentIndex = array.length;
                     // While there remain elements to shuffle...
                     while (currentIndex != 0) {
-                      // Pick a remaining element...
-                      let randomIndex = Math.floor(Math.random() * currentIndex);
-                      currentIndex--;
-                      // And swap it with the current element.
-                      [array[currentIndex], array[randomIndex]] = [
-                        array[randomIndex], array[currentIndex]];
+                        // Pick a remaining element...
+                        let randomIndex = Math.floor(Math.random() * currentIndex);
+                        currentIndex--;
+                        // And swap it with the current element.
+                        [array[currentIndex], array[randomIndex]] = [
+                            array[randomIndex], array[currentIndex]];
                     }
-                  }
+                }
                 shuffle(Rand);
                 let bound = Rand(Minimum, Maximum);
-                activity(ARR,bound);
+                await activity(ARR, bound);
             }
 
-            async function activity(ARR,bound) {
+            async function activity(ARR, bound) {
                 bound = bound || ARR.length;
                 async function fetchExcel(param) {
                     let options = {
@@ -300,8 +304,16 @@ function run(user, vpnref,specialInstructions) {
                         //sheetName, // optional, sheet name in the Excel file to be converted to CSV
                         writeCsv: false, // if true, the output will be written to a file, otherwise will be returned by the function
                     }
-                    let data = (await excel2csv.convert(`Activity_Scripts/${param}`, options)).split('\n');
-                    return data;
+                    //temp 
+                    let data;
+                    try {
+                        data = (await excel2csv.convert(`Activity_Scripts/${param}`, options)).split('\n');
+                        return data;
+                    } catch (error) {
+                        log(error, 'err');
+                        return [];
+                    }
+
                 }
                 for (let index = 0; index < bound; index++) {
                     let tee = ARR[index];
@@ -328,11 +340,63 @@ function run(user, vpnref,specialInstructions) {
                                 log(element.selector, element.purpose);
                                 break;
                             case "screenshot":
-                                await page.screenshot({ path: `./data/${user.id}/${element.selector}.png` });
+                                await page.screenshot({ path: `../DBs/sessions/${user.id}/${element.selector}.png` });
                                 log("Screenshot made", "info");
                                 break;
+                            case "awaitingconfirmation":
+                                log(`${element.purpose} waiting for ${element.selector}`, 'info');
+                                let AwaitingSuccess = new Promise(async (resolve, reject) => {
+                                    let a = setTimeout(() => log("10 seconds passed", "info"), 10000);
+                                    setTimeout(() => { reject("Missing confirmation"); }, 15000);
+                                    try {
+                                        await page.waitForSelector(element.selector);
+                                        resolve("Confirmation received");
+                                    } catch (error) {
+                                        reject("Error");
+                                    }
+                                });
+
+                                await AwaitingSuccess
+                                    .then(
+                                        async result => {
+                                            log(result, 'done');
+                                            //Place for success result
+                                            //await page.screenshot({ path: `./data/${user.id}/Success.png` });
+                                        },
+                                        async error => {
+                                            log(error, 'warn');
+                                            //Place for doubtful result
+                                            //await page.screenshot({ path: `./data/${user.id}/Doubt.png` });
+                                            //Stay on the page
+
+                                            //Write a report
+                                            let matter = "Doubt! Check Doubt.png";
+                                            incLog = matter;
+                                            if ((user.email == undefined) || user.email == null) {
+                                                matter = "Empty session"
+                                            }
+                                            log(matter, 'info')
+                                        }
+                                    );
+
+                                break;
                             case "write":
-                                await write(element.selector, element.comment, element.purpose)
+                                let to_write = element.comment;
+                                if (element.comment == "fromuser") {
+                                    log('user case', 'info');
+                                    switch (element.purpose) {
+                                        case "nickname":
+                                            to_write = user.nickname;
+                                            break;
+                                        case "email":
+                                            to_write = user.email;
+                                            break;
+                                        case "password":
+                                            to_write = user.password;
+                                            break;
+                                    }
+                                }
+                                await write(element.selector, to_write, element.purpose)
                                 break;
                             case "captcha":
                                 log(`captcha - ${element.purpose}`, "info");
@@ -366,9 +430,9 @@ function run(user, vpnref,specialInstructions) {
                                 break;
                             case "risqueaction":
                                 try {
-                                    await page.waitForSelector(element.selector);
+                                    //await page.waitForSelector(element.selector);
                                     //await cursor.move(selector);
-                                    await cursor.click(element.selector);
+                                    await cursor.click('[type="submit"]');
                                     log(`Success ${element.purpose}`, 'info');
                                 } catch (error) {
                                     log(`Failed ${element.purpose}`, 'warn');
@@ -424,35 +488,37 @@ function run(user, vpnref,specialInstructions) {
             }
 
             //Main execution
-            specialInstructions = specialInstructions || [["rand",5,10]];
+            log(`executing scripts`, 'info');
+            specialInstructions = JSON.parse(String(specialInstructions)) || [["rand", 2, 5, "LS_signup.xlsx"]];
+            log(specialInstructions, 'info');
             for (let index = 0; index < specialInstructions.length; index++) {
-                const element = specialInstructions[index];
-                let mass =[];
+                let element = specialInstructions[index];
+                let mass = [];
                 switch (element[0]) {
                     case "rand":
                         //banned actions
                         for (let j = 3; j < element.length; j++) {
                             mass.push(element[j]);
                         }
-                        RandActivity(element[1],element[2],mass);
+                        await RandActivity(element[1], element[2], mass);
                         break;
                     case "action":
-                        //accepting NAME OF FILES
+                        //accepting NAME OF FILES 
                         for (let j = 1; j < element.length; j++) {
                             mass.push(element[j]);
                         }
-                        activity(mass);
+                        await activity(mass);
                         break;
-                
+
                     default:
-                        log(`Failed to understand ${element[0]}`,'warn');
+                        log(`Failed to understand ${element[0]}`, 'warn');
                         break;
                 }
             }
 
             //await RandActivity(5, 12, []);
             //Post execution zone
-            
+
             SQLWriteSignUp({
                 Id: user.id,
                 RelativeStorage: user.id,
@@ -463,7 +529,6 @@ function run(user, vpnref,specialInstructions) {
                 VPNreferenc: vpnref
             });
             browser.close();
-            counter="";
             return resolve("Success");
         } catch (e) {
             SQLWriteSignUp({
@@ -475,7 +540,6 @@ function run(user, vpnref,specialInstructions) {
                 VPNreferenc: vpnref
             });
             browser.close();
-            counter="";
             return reject(e);
         }
     });
@@ -484,7 +548,7 @@ function run(user, vpnref,specialInstructions) {
 //#endregion
 
 //#region Pre-launch
-export async function UseVPN(urlM, urlR, user,specialInstructions) {
+export async function UseVPN(urlM, urlR, user, specialInstructions) {
     //Launch VPN
     let requiredVPNparam;
     try {
@@ -503,7 +567,7 @@ export async function UseVPN(urlM, urlR, user,specialInstructions) {
         }
     }
     //Launch Webscrapper
-    await run(user, VPNSession._specID,specialInstructions).then(
+    await run(user, VPNSession._specID, specialInstructions).then(
         response => {
             log(response, 'done');
             //Disable VPN session
@@ -518,9 +582,9 @@ export async function UseVPN(urlM, urlR, user,specialInstructions) {
     return 0;
 }
 
-export async function NoVPN(urlM, urlR, user,specialInstructions) {
+export async function NoVPN(urlM, urlR, user, specialInstructions) {
     //Launch Webscrapper
-    await run(user, "",specialInstructions).then(
+    await run(user, "", specialInstructions).then(
         response => {
             log(response, 'done');
         },
@@ -632,10 +696,11 @@ export async function Plan(params) {
         log(error, 'err');
         throw new Error("ShutDown");
     }
-    let scheed = [];
+
     for (let i = 0; i < user.length; i++) {
         //console.log(new Date(user[i].DateToCreate));
         let userB = user[i];
+        let specialtask = userB.Plan;
         userB = {
             id: userB.Id,
             nickname: userB.Nickname,
@@ -644,14 +709,14 @@ export async function Plan(params) {
             referrer: userB.Referrer,
             userData: userB
         }
-        if (user[i].DateToCreate == 0) {
+        if (user[i].DateToCreate == -1) {
             log(`Requested User to signUp Right Now ${userB.id}`, "info");
-            UseVPN(urlM, urlR, userB);
+            UseVPN(urlM, urlR, userB, specialtask);
         }
-        scheed.push(schedule.scheduleJob(new Date(user[i].DateToCreate || 0),
+        scheed.push(schedule.scheduleJob(new Date(user[i].DateToCreate),
             function start(i) {
                 log(`Requested User to signUp ${userB.id}`, "info");
-                UseVPN(urlM, urlR, userB);
+                UseVPN(urlM, urlR, userB, specialtask);
             }.bind(null, userB)
         ));
     }
