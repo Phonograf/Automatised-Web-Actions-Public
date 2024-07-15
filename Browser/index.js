@@ -241,28 +241,28 @@ function run(user, vpnref, specialInstructions) {
             });
             const page = await browser.newPage();
             const cursor = createCursor(page);
-            let headers ={}
+            let headers = {}
 
             //referrer
             if (user.userData.Refferer) {
                 if (process.env.VisitReferer) {
-                    await page.goto(user.userData.Refferer, { waitUntil: 'load', timeout: 0 }); 
-                }else{
-                    headers['Referer']=user.userData.Referrer;
+                    await page.goto(user.userData.Refferer, { waitUntil: 'load', timeout: 0 });
+                } else {
+                    headers['Referer'] = user.userData.Referrer;
                 }
                 log(`Referer page (${user.userData.Refferer}) was proceeded`, 'done');
             }
             // User agent plugin. IMPORTANT! CAPTCHA WON"T BE LOADED WITH USER AGENT
-            if(process.env.UserAgent==true){
-                headers['User-Agent']=randomUseragent.getRandom();
+            if (process.env.UserAgent == true) {
+                headers['User-Agent'] = randomUseragent.getRandom();
             }
 
             // Target Page
             log(url, 'done');
-            await page.setExtraHTTPHeaders(headers); 
+            await page.setExtraHTTPHeaders(headers);
             await page.goto(url, { waitUntil: 'load', timeout: 0 });
             log(`Target page was loaded`, 'done');
-            
+
             // Technical functions
             function Addtime(params) {
                 StayTime++;
@@ -714,12 +714,12 @@ export async function Plan(params) {
         }
         if (user[i].DateToCreate == -1) {
             log(`Requested User to signUp Right Now ${userB.id}`, "info");
-            if (process.env.VPNUsage==true) {
+            if (process.env.VPNUsage == true) {
                 UseVPN(urlM, urlR, userB, specialtask);
-            }else{
+            } else {
                 NoVPN(urlM, urlR, userB, specialtask);
             }
-            
+
         }
         scheed.push(schedule.scheduleJob(new Date(user[i].DateToCreate),
             function start(i) {
