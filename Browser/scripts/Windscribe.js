@@ -1,5 +1,6 @@
+//Dedicated imports 
 import { config } from "dotenv";
-config();
+config( {path: `../../Configs/.env.client` });
 import cmd from 'node-cmd';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -8,18 +9,13 @@ import log from './functions.js';
 import sqlite3 from 'better-sqlite3';
 //let DBSOURCE = `../${process.env.PathToDB}`;
 let DBSOURCE = process.env.PathToDB;
-let db = new sqlite3(DBSOURCE, {}, (err) => {
-    if (err) {
-        // Cannot open database
-        log(err.message,'err');
-        throw err
-    }
-});
+let db = new sqlite3(DBSOURCE, {});
 
 
 //#region VPN 
 export class VPN {
     // DON'T USE 2+ EXEMPLARS OF THIS CLASSES AT THE SAME TIME
+    // Foolproof is to be added in this class in the future
     constructor(specID) {
         this._specID = specID;
     }

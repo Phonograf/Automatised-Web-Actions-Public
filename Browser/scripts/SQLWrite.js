@@ -1,58 +1,7 @@
-import { config } from "dotenv";
-config();
 import log from './functions.js';
-import sqlite3 from 'better-sqlite3';
-//let DBSOURCE = `../${process.env.PathToDB}`;
-let DBSOURCE = process.env.PathToDB;
-let db = new sqlite3(DBSOURCE, {}, (err) => {
-    if (err) {
-        // Cannot open database
-        console.error(err.message);
-        throw err
-    }
-    db.run(`CREATE TABLE Mainframe (
-            Id INTEGER PRIMARY KEY AUTOINCREMENT,
-            Nickname text, 
-            Email text, 
-            Password text,
-            RelativeStorage text,
-            IncidentLog TEXT,
-            Refferer TEXT,
-            Created Integer,
-            CreateTime DATE, 
-            ToBeRevisited Integer,
-            StayTime Integer,            
-            DateLastChanged DATE,    
-            DateToCreate DATE,
-            DateCreated DATE,
-            VPNreferenc TEXT,
-            raw text
-            )`,
-        (err) => {
-            if (err) {
-                // Table already created
-            } else {
-                // Table just created, creating some rows
-            }
-        });
-    db.run(`CREATE TABLE VPN (
-            Id INTEGER PRIMARY KEY AUTOINCREMENT,
-            Name text, 
-            Location text, 
-            Config text,
-            raw text
-            )`,
-        (err) => {
-            if (err) {
-                // Table already created
-            } else {
-                // Table just created, creating some rows
-            }
-        });
-});
 
 //#region Storing results
-export async function SQLWriteSignUp(params) {
+export async function SQLWriteSignUp(db,params) {
     let DC ="";
     if (params.CreateTime) {
         DC = `CreateTime=${params.CreateTime},`

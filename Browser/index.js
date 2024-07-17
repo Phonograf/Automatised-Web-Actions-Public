@@ -42,75 +42,16 @@ puppeteer.use(
 
 import sqlite3 from 'better-sqlite3';
 let DBSOURCE = process.env.PathToDB;
-let db = new sqlite3(DBSOURCE, {}, (err) => {
-    if (err) {
-        // Cannot open database
-        console.error(err.message);
-        throw err
-    }
-    db.run(`CREATE TABLE Mainframe (
-            Id INTEGER PRIMARY KEY AUTOINCREMENT,
-            Nickname text, 
-            Email text, 
-            Password text,
-            RelativeStorage text,
-            IncidentLog TEXT,
-            Refferer TEXT,
-            Target TEXT,
-            Created Integer,
-            CreateTime DATE, 
-            ToBeRevisited Integer,
-            StayTime Integer,            
-            DateLastChanged DATE,    
-            DateToCreate DATE,
-            DateCreated DATE,
-            VPNreferenc TEXT,
-            raw text
-            )`,
-        (err) => {
-            if (err) {
-                // Table already created
-            } else {
-                // Table just created, creating some rows
-            }
-        });
-    db.run(`CREATE TABLE VPN (
-            Id INTEGER PRIMARY KEY AUTOINCREMENT,
-            Name text, 
-            Location text, 
-            Config text,
-            raw text
-            )`,
-        (err) => {
-            if (err) {
-                // Table already created
-            } else {
-                // Table just created, creating some rows
-            }
-        });
-    db.run(`CREATE TABLE Windscribe (
-            Id INTEGER PRIMARY KEY AUTOINCREMENT,
-            Name text, 
-            Location text, 
-            Config text,
-            raw text
-            )`,
-        (err) => {
-            if (err) {
-                // Table already created
-            } else {
-                // Table just created, creating some rows
-            }
-        });
-});
-
+let db = new sqlite3(DBSOURCE, {});
+import { prepareDB } from "./scripts/prepareDB.js";
+prepareDB(db);
 //import functions and classes
 import log from './scripts/functions.js';
 import { VPN } from './scripts/Windscribe.js';
 import { SQLUserExtraction } from './scripts/SQLUserImport.js';
 import { SQLWriteSignUp } from './scripts/SQLWrite.js';
 import { SendMessage } from "./main.js";
-import {fetchExcel} from './scripts/casesForActivity/fetchExcel.js';
+import { fetchExcel } from './scripts/casesForActivity/fetchExcel.js';
 log(`Scripts were loaded`, 'done');
 
 //deprecated region - it's easier to make empty string than to fix
@@ -148,7 +89,7 @@ export async function selfLaunch(params) {
             await EngageSignUp();
             async function EngageSignUp(params) {
                 let id = Number(params[1]) || 1;
-                let user = await SQLUserExtraction(id);
+                let user = await SQLUserExtraction(db,id);
                 user = user[0];
                 user = {
                     id: user.Id,
@@ -172,14 +113,10 @@ export async function selfLaunch(params) {
             break;
         case "manual":
             log("Defined action as Manual login", "info");
-            await EngageManual();
+            await EngageManual(params);
             async function EngageManual(params) {
-                let id = Number(params[1]) || await DefineID() || 1;
-                async function DefineID() {
-                    let result = 5;
-                    return result;
-                }
-                let user = await SQLUserExtraction(id);
+                let id = Number(params[1]) || Number(1);
+                let user = await SQLUserExtraction(db,id);
                 user = user[0];
                 user = {
                     id: user.Id,
@@ -502,7 +439,7 @@ function run(user, vpnref, specialInstructions) {
                 }
             }
 
-            SQLWriteSignUp({
+            SQLWriteSignUp(db,{
                 Id: user.id,
                 RelativeStorage: user.id,
                 IncidentLog: incLog,
@@ -514,7 +451,7 @@ function run(user, vpnref, specialInstructions) {
             browser.close();
             return resolve("Success");
         } catch (e) {
-            SQLWriteSignUp({
+            SQLWriteSignUp(db,{
                 Id: user.id,
                 RelativeStorage: user.id,
                 IncidentLog: `${e.name}- ${e.message}`,
@@ -612,7 +549,6 @@ export function runManual(url, referrer, user, vpnref) {
             let sql = `UPDATE [Mainframe] set
             DateLastChanged=${Date.now()}
             Where Id=${user.id};`
-            //console.log(sql);
             let result;
             try {
                 result = db.prepare(sql).run();
@@ -657,7 +593,6 @@ async function Manual(urlM, urlR, user) {
         },
         error => {
             log(error, 'err');
-            //console.log(error);
             //Disable VPN session
             //VPNSession.VPNDisable(); 
         }
@@ -682,7 +617,6 @@ export async function Plan(params) {
     }
 
     for (let i = 0; i < user.length; i++) {
-        //console.log(new Date(user[i].DateToCreate));
         let userB = user[i];
         let specialtask = userB.Plan;
         userB = {
