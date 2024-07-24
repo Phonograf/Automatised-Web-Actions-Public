@@ -1,6 +1,8 @@
 import excel2csv from 'excel2csv';
 
-export async function fetchExcel(param) {
+export default async function fetchExcel(param) {
+    let log= await import ('../../functions.js'); 
+    log = (log).default;
     let options = {
         sheetIndex: 0, // optional, 0-based index of the Excel sheet to be converted to CSV (default is 0)
         //sheetName, // optional, sheet name in the Excel file to be converted to CSV

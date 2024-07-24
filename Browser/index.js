@@ -51,7 +51,10 @@ import { VPN } from './scripts/Windscribe.js';
 import { SQLUserExtraction } from './scripts/SQLUserImport.js';
 import { SQLWriteSignUp } from './scripts/SQLWrite.js';
 import { SendMessage } from "./main.js";
-import { fetchExcel } from './scripts/casesForActivity/fetchExcel.js';
+
+//Folder import. Activities is object
+import * as activitiesTEMP from './scripts/activityLoader.js'
+const activities = await activitiesTEMP.default();
 log(`Scripts were loaded`, 'done');
 
 //deprecated region - it's easier to make empty string than to fix
@@ -164,17 +167,10 @@ function run(user, vpnref, specialInstructions) {
         let browser;
         let incLog = "";
         try {
-            //DEPRECATED - to be relocated
-            /*
-            if (user.email == undefined) {
-                log(`User wasn't received. Proceeding empty session`, 'warn');
-                //reject("User wasn't received");
-            }
-            */
             //launch browser
             browser = await puppeteer.launch({
                 userDataDir: `${process.env.PathToSessions}/${user.id}`,
-                headless: false,
+                headless: true,
                 executablePath: executablePath()
             });
             const page = await browser.newPage();
@@ -243,7 +239,7 @@ function run(user, vpnref, specialInstructions) {
                 bound = bound || ARR.length;
                 for (let index = 0; index < bound; index++) {
                     let tee = ARR[index];
-                    let script = await fetchExcel(tee);
+                    let script = await activities.translator.fetchExcel.default(tee);
                     log(`Executing script ${tee}`, "info");
                     for (let j = 1; j < script.length; j++) {
                         let medium = script[j].split(",");
@@ -253,161 +249,18 @@ function run(user, vpnref, specialInstructions) {
                             selector: medium[3],
                             comment: medium[4]
                         };
-                        //Should be deprecated
-                        switch (element.action) {
-                            case "break":
-                                log(`${element.purpose} - ${element.selector}`, "info");
-                                await sleep(Number(element.selector));
-                                break;
-                            case "click":
-                                await waitandpress(element.selector, element.purpose);
-                                break;
-                            case "log":
-                                log(element.selector, element.purpose);
-                                break;
-                            case "screenshot":
-                                await page.screenshot({ path: `../DBs/sessions/${user.id}/${element.selector}.png` });
-                                log("Screenshot made", "info");
-                                break;
-                            case "awaitingconfirmation":
-                                log(`${element.purpose} waiting for ${element.selector}`, 'info');
-                                let AwaitingSuccess = new Promise(async (resolve, reject) => {
-                                    let a = setTimeout(() => log("10 seconds passed", "info"), 10000);
-                                    setTimeout(() => { reject("Missing confirmation"); }, 15000);
-                                    try {
-                                        await page.waitForSelector(element.selector);
-                                        resolve("Confirmation received");
-                                    } catch (error) {
-                                        reject("Error");
-                                    }
-                                });
-
-                                await AwaitingSuccess
-                                    .then(
-                                        async result => {
-                                            log(result, 'done');
-                                            //Place for success result
-                                            //await page.screenshot({ path: `./data/${user.id}/Success.png` });
-                                        },
-                                        async error => {
-                                            log(error, 'warn');
-                                            //Place for doubtful result
-                                            //await page.screenshot({ path: `./data/${user.id}/Doubt.png` });
-                                            //Stay on the page
-
-                                            //Write a report
-                                            let matter = "Doubt! Check Doubt.png";
-                                            incLog = matter;
-                                            if ((user.email == undefined) || user.email == null) {
-                                                matter = "Empty session"
-                                            }
-                                            log(matter, 'info')
-                                        }
-                                    );
-
-                                break;
-                            case "write":
-                                let to_write = element.comment;
-                                if (element.comment == "fromuser") {
-                                    log('user case', 'info');
-                                    switch (element.purpose) {
-                                        case "nickname":
-                                            to_write = user.nickname;
-                                            break;
-                                        case "email":
-                                            to_write = user.email;
-                                            break;
-                                        case "password":
-                                            to_write = user.password;
-                                            break;
-                                    }
-                                }
-                                await write(element.selector, to_write, element.purpose)
-                                break;
-                            case "captcha":
-                                log(`captcha - ${element.purpose}`, "info");
-                                await captcha();
-                                break;
-                            case "end":
-                                j = script.length;
-                                //Delete from pool if unique is stated in purpose
-                                if ((element.purpose == "unique") || (element.selector == "unique")) {
-                                    ARR.splice(j, 1);
-                                }
-                                break;
-                            case "goto":
-                                log(`${element.purpose} - ${element.selector}`, "info");
-                                await page.goto(element.selector, { waitUntil: 'load', timeout: 0 });
-                                break;
-                            case "clckrnd":
-                                log(`${element.purpose} - ${element.selector}`, "info");
-                                //example .G:nth-child(2) > .df.df--hover.df--clickable:
-                                await waitandpress(`${element.selector}:nth-child(${Rand(1, 7)})`, element.purpose);
-                                break;
-                            case "closecookies":
-                                try {
-                                    await page.waitForSelector(element.selector);
-                                    await cursor.click(element.selector);
-                                    log(`MS_CloseCookies ${element.purpose}`, 'info');
-                                } catch (error) {
-                                    log(`Cookie close failed. Was it closed before?`, 'warn');
-                                }
-                                break;
-                            case "risqueaction":
-                                try {
-                                    await cursor.click('[type="submit"]');
-                                    log(`Success ${element.purpose}`, 'info');
-                                } catch (error) {
-                                    log(`Failed ${element.purpose}`, 'warn');
-                                }
-                                break;
-                            default:
-                                log("Action isn't defined or has a mistake", "warn");
-                                break;
+                        if (!element.action) {
+                            continue
+                        }
+                        //execution area
+                        try {
+                            await activities.basics[element.action].default(page,element);
+                        } catch (error) {
+                            log(`Action ${element.action} doesn't exist`,'warn');
                         }
                     }
                     log(`Executed script ${tee}`, "done");
                 }
-            }
-
-            async function waitandpress(selector, purpose) {
-                try {
-                    await page.waitForSelector(selector);
-                    //await cursor.move(selector);
-                    await cursor.click(selector);
-                    log(`MS_action ${purpose}`, 'info');
-                } catch (error) {
-                    log(`Error on ${purpose} - ${error.name}`, 'err');
-                }
-
-            }
-            async function write(selector, content, purpose) {
-                await page.typeHuman(`${selector}`, content, {
-                    backspaceMaximumDelayInMs: 750 * 2,
-                    backspaceMinimumDelayInMs: 750,
-                    keyboardLayout: "en",
-                    keyboardLayouts: {
-                        en: [
-                            ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-"],
-                            ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "["],
-                            ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'"],
-                            ["z", "x", "c", "v", "b", "n", "m", ",", ".", "/"],
-                        ],
-                    },
-                    maximumDelayInMs: 650,
-                    minimumDelayInMs: 150,
-                    typoChanceInPercent: 0,
-                    chanceToKeepATypoInPercent: 0
-                });
-                log(`KB_action ${purpose}`, 'info');
-            }
-            async function captcha(params) {
-                let a = await page.solveRecaptchas();
-                log(`Captcha ended with ${JSON.stringify(a.solved)}`, 'info');
-                return
-            }
-            function sleep(ms) {
-                return new Promise(resolve => setTimeout(resolve, ms));
             }
 
             //Main execution
@@ -479,6 +332,7 @@ export async function UseVPN(urlM, urlR, user, specialInstructions) {
         requiredVPNparam = undefined;
     }
     let VPNSession = new VPN(requiredVPNparam);
+    //add handler of errors
     let launched = await VPNSession.initiate();
     if ((launched == "Failed")) {
         log("VPN failed", "err");
@@ -629,9 +483,10 @@ export async function Plan(params) {
         }
         if (user[i].DateToCreate == -1) {
             log(`Requested User to signUp Right Now ${userB.id}`, "info");
-            if (process.env.VPNUsage == true) {
+            if (process.env.VPNUsage == "true") {
                 UseVPN(urlM, urlR, userB, specialtask);
             } else {
+                log('Proceeding w/o VPN','info');
                 NoVPN(urlM, urlR, userB, specialtask);
             }
 

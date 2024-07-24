@@ -76,7 +76,7 @@ export class VPN {
             `"${process.env.PathToWindscribe}" connect ${configFile.Config}`
         );
         if (m.err) {
-            log(err, 'err');
+            log(m.err, 'err');
             return "Failed";
         }
         log(`Connect: ${m.data.split("\n")[0]}`, 'info');
@@ -90,7 +90,7 @@ export class VPN {
             `"${process.env.PathToWindscribe}" disconnect`
         );
         if (m.err) {
-            log(err, 'err');
+            log(m.err, 'err');
             return "Failed";
         }
         log(`Disconnect: ${m.data.split("\n")[0]}`, 'info');
