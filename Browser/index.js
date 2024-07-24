@@ -52,6 +52,8 @@ import { SQLUserExtraction } from './scripts/SQLUserImport.js';
 import { SQLWriteSignUp } from './scripts/SQLWrite.js';
 import { SendMessage } from "./main.js";
 import { fetchExcel } from './scripts/casesForActivity/fetchExcel.js';
+//import * as mod from './scripts/activityLoader.js';
+activity();
 log(`Scripts were loaded`, 'done');
 
 //deprecated region - it's easier to make empty string than to fix
