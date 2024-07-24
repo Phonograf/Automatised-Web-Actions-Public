@@ -1,6 +1,6 @@
 {
-  "name": "nlx-backend-component",
-  "version": "1.0.0",
+  "name": "awap-backend-component",
+  "version": "0.1.0",
   "description": "Backend component for the site",
   "main": "index.js",
   "scripts": {
