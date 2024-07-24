@@ -1,13 +1,12 @@
 //Dedicated imports 
 import { config } from "dotenv";
-config( {path: `../../Configs/.env.client` });
+config( {path: `../Configs/.env.client` });
 import cmd from 'node-cmd';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 import log from './functions.js';
 import sqlite3 from 'better-sqlite3';
-//let DBSOURCE = `../${process.env.PathToDB}`;
 let DBSOURCE = process.env.PathToDB;
 let db = new sqlite3(DBSOURCE, {});
 
