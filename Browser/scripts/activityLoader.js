@@ -1,15 +1,28 @@
+//import * as loader from './loader.js';
+import pkg from 'fs';
+const fs = await pkg;
+const readdirSync = fs.readdirSync;
 import log from './functions.js';
 
-module.exports = () => {
-    for (const type of readdirSync('./casesForActivity/')) {
-        for (const dir of readdirSync('./casesForActivity/' + type)) {
-            for (const file of readdirSync('./casesForActivity/' + type + '/' + dir).filter((f) => f.endsWith('.js'))) {
-                const module = require('../commands/' + type + '/' + dir + '/' + file);
-
-                if (!module) continue;
-
-                log('Loaded new command: ' + file, 'info');
-            };
+export default async function importer() {
+    let returner = {
+        translator: {},
+        basics: {}
+    };
+    let simpleCounter = 0;
+    for (const type of readdirSync('./scripts/casesForActivity/')) {
+        for (const file of readdirSync('./scripts/casesForActivity/' + type).filter((f) => f.endsWith('.js'))) {
+            let module = await import(`./casesForActivity/${type}/${file}`);
+            if (!module) continue;
+            if (type != 'translators') {
+                returner.basics[file.split('.js')[0]] = module;
+            } else {
+                returner.translator[file.split('.js')[0]] = module;
+            }
+            log('Found: ' + file, 'info');
+            simpleCounter++;
         };
     };
+    log(`Returning ${simpleCounter} scripts`, 'done');
+    return returner;
 };

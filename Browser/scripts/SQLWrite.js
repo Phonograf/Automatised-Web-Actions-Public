@@ -15,7 +15,7 @@ export async function SQLWriteSignUp(db,params) {
         CreateTime: Date.now(),
         StayTime: params.StayTime || 0,
         DateLastChanged: Date.now(),
-        VPNreferenc: params.VPNreferenc
+        VPNreferenc: params.VPNreferenc || 0
     }
     let sql = `UPDATE [Mainframe] set
     RelativeStorage=${params.RelativeStorage},
@@ -26,7 +26,6 @@ export async function SQLWriteSignUp(db,params) {
     ${DC}
     VPNreferenc=${params.VPNreferenc}
     Where Id=${params.Id};`
-    //console.log(sql);
     let result;
     try {
         result = db.prepare(sql).run();
