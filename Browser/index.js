@@ -170,7 +170,7 @@ function run(user, vpnref, specialInstructions) {
             //launch browser
             browser = await puppeteer.launch({
                 userDataDir: `${process.env.PathToSessions}/${user.id}`,
-                headless: false,
+                headless: true,
                 executablePath: executablePath()
             });
             const page = await browser.newPage();
