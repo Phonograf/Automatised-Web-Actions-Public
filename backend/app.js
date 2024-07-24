@@ -20,8 +20,6 @@ let morgan = require('morgan');
 let rfs = require('rotating-file-stream');
 const path = require("path");
 
-let reestr =[];
-
 let db = new sqlite3.Database(DBSOURCE, (err) => {
     if (err) {
       // Cannot open database
