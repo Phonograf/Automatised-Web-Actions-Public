@@ -5,7 +5,7 @@ import puppeteer from "puppeteer-extra";
 import { readdirSync } from 'fs';
 import { createCursor } from "ghost-cursor";
 import RecaptchaPlugin from 'puppeteer-extra-plugin-recaptcha';
-import h_typing from "./scripts/puppeteer-extra-plugin-human-typing/index.js";
+import h_typing from "./scripts/plugins/puppeteer-extra-plugin-human-typing/index.js";
 import randomUseragent from 'random-useragent';
 // Add stealth plugin and use defaults 
 import pluginStealth from 'puppeteer-extra-plugin-stealth';
@@ -43,13 +43,14 @@ puppeteer.use(
 import sqlite3 from 'better-sqlite3';
 let DBSOURCE = process.env.PathToDB;
 let db = new sqlite3(DBSOURCE, {});
-import { prepareDB } from "./scripts/prepareDB.js";
+import { prepareDB } from "./scripts/SQL/prepareDB.js";
 prepareDB(db);
 //import functions and classes
 import log from './scripts/functions.js';
-import { VPN } from './scripts/Windscribe.js';
-import { SQLUserExtraction } from './scripts/SQLUserImport.js';
-import { SQLWriteSignUp } from './scripts/SQLWrite.js';
+//To be allowed to resolve it according to the user's settings
+import { VPN } from './scripts/VPN/Windscribe.js';
+import { SQLUserExtraction } from './scripts/SQL/SQLUserImport.js';
+import { SQLWriteSignUp } from './scripts/SQL/SQLWrite.js';
 import { SendMessage } from "./main.js";
 
 //Folder import. Activities is object

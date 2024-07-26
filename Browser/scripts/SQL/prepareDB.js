@@ -1,4 +1,4 @@
-import log from './functions.js';
+import log from '../functions.js';
 
 export function prepareDB(db){
     let sql = `CREATE TABLE IF NOT EXISTS [Mainframe] (

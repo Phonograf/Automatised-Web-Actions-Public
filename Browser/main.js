@@ -13,8 +13,8 @@ dotenv.config();
 import FileReader from 'filereader';
 import { NoVPN, UseVPN, selfLaunch } from "./index.js";
 import log from './scripts/functions.js';
-import { SQLRaw } from './scripts/SQLraw.js';
-import { SQLUserExtraction } from './scripts/SQLUserImport.js';
+import { SQLRaw } from './scripts/SQL/SQLraw.js';
+import { SQLUserExtraction } from './scripts/SQL/SQLUserImport.js';
 
 //Global var
 let wsClient;
@@ -48,10 +48,30 @@ export function Deploy(params) {
     }
     //Iteration. 0 - new, 1+ - it exists. 
     iter = process.env.npm_config_iter || params || 0;
-    log(`ini iter = ${iter}`,'info');
+    log(`ini iter = ${iter}`, 'info');
 
     //WS Open
+    function start(params) {
+
+    }
+
     wsClient = new WebSocket(process.env.PathToWS);
+
+    wsClient.on('error', async function (err) {
+        log('Web-Socket connection failed.', 'err');
+        log(`Offline mode is available with self.js`, 'info');
+        if (Boolean(process.env.RestartTime)==true) {
+            log(`Repeat attempt in...${process.env.RestartTime}ms`,'info')
+            await sleep(Number(process.env.RestartTime));
+            Deploy();
+        }
+        
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+    });
+
     wsClient.on('open', onConnect);
 }
 
@@ -70,7 +90,7 @@ function onConnect() {
     wsClient.on('message', function (message) {
         try {
             const jsonMessage = JSON.parse(message);
-            log(`Accepted message with ${jsonMessage.action}`,'info');
+            log(`Accepted message with ${jsonMessage.action}`, 'info');
             switch (jsonMessage.action) {
                 case 'ECHO':
                     wsClient.send(jsonMessage.data);
@@ -94,10 +114,10 @@ function onConnect() {
                                     timestamp: Date.now(),
                                     data: `${err.name} - ${err.message}`
                                 }));
-                                log(err,'err');
+                                log(err, 'err');
                                 return;
                             }
-                            log(`CMD command received ${data}`,'info');
+                            log(`CMD command received ${data}`, 'info');
                             wsClient.send(JSON.stringify({
                                 action: "FileCallback",
                                 priority: "done",
@@ -124,10 +144,10 @@ function onConnect() {
                             }))
                         };
                     });
-                    log(`Saved to ./files/${temp_name}.${temp_ext}`,'info');
+                    log(`Saved to ./files/${temp_name}.${temp_ext}`, 'info');
                     break;
-                case'SENDFILE':
-                SendFile(jsonMessage.data.name,jsonMessage.data.extension,jsonMessage.data.path);
+                case 'SENDFILE':
+                    SendFile(jsonMessage.data.name, jsonMessage.data.extension, jsonMessage.data.path);
                     break;
                 case "manual":
                     selfLaunch(`manual ${jsonMessage.data}`);
@@ -158,14 +178,14 @@ function onConnect() {
                         return user
                     }
                     engage(jsonMessage.id);
-                    
+
                     break;
                 default:
-                    log('Unknown command','warn');
+                    log('Unknown command', 'warn');
                     break;
             }
         } catch (error) {
-            log(error,'err');
+            log(error, 'err');
         }
     });
 }

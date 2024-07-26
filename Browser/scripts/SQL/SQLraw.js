@@ -1,4 +1,4 @@
-import log from './functions.js';
+import log from '../functions.js';
 
 //#region SQL User Extraction
 //TBC

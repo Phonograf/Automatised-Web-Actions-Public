@@ -1,7 +1,7 @@
-import log from './functions.js';
+import log from '../functions.js';
 
 //#region Storing results
-export async function SQLWriteSignUp(db,params) {
+export async function SQLInsert(db,params) {
     let DC ="";
     if (params.CreateTime) {
         DC = `CreateTime=${params.CreateTime},`
