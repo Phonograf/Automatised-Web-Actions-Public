@@ -97,9 +97,7 @@ router.get("/websocket/:id", auth, (req, res, next) => {
             comment: element.comment,
             ip: element.ip,
             status: element.status,
-            log: element.log,
-            gameStatus: element.gameStatus,
-            time: element.gameTimeSaved
+            log: element.log
         }
     })
 });
@@ -410,4 +408,5 @@ class computer {
     }
 }
 
-module.exports = router;
+
+module.exports = { router, ClientsDB };

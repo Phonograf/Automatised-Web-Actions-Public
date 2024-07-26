@@ -11,6 +11,7 @@ export function prepareDB(db){
             Refferer TEXT,
             Target TEXT,
             Created Integer,
+            Plan TEXT,
             CreateTime DATE, 
             ToBeRevisited Integer,
             StayTime Integer,            

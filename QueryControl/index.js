@@ -24,41 +24,27 @@ let db = new sqlite3(DBSOURCE, {}, (err) => {
     console.error(err.message);
     throw err
   }
-  db.run(`CREATE TABLE Mainframe (
-          Id INTEGER PRIMARY KEY AUTOINCREMENT,
-          Nickname text, 
-          Email text, 
-          Password text,
-          RelativeStorage text,
-          LinkedTo TEXT,
-          IncidentLog TEXT,
-          Refferer TEXT,
-          Target TEXT,
-          Created Integer,
-          CreateTime DATE, 
-          ToBeRevisited Integer,
-          StayTime Integer,            
-          DateLastChanged DATE,    
-          DateToCreate DATE,
-          DateCreated DATE,
-          VPNreferenc TEXT,
-          Plan TEXT,
-          raw text
-          )`,
-    (err) => {
-      if (err) {
-        // Table already created
-      } else {
-        // Table just created, creating some rows
-      }
-    });
-  db.run(`CREATE TABLE VPN (
-          Id INTEGER PRIMARY KEY AUTOINCREMENT,
-          Name text, 
-          Location text, 
-          Config text,
-          raw text
-          )`,
+  db.run(`CREATE TABLE IF NOT EXISTS [Mainframe] (
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            PassTo Integer,
+            Nickname text, 
+            Email text, 
+            Password text,
+            RelativeStorage text,
+            IncidentLog TEXT,
+            Refferer TEXT,
+            Target TEXT,
+            Created Integer,
+            CreateTime DATE, 
+            ToBeRevisited Integer,
+            StayTime Integer,            
+            DateLastChanged DATE,    
+            DateToCreate DATE,
+            DateCreated DATE,
+            Plan TEXT,
+            VPNreferenc TEXT,
+            raw text
+            )`,
     (err) => {
       if (err) {
         // Table already created
@@ -109,10 +95,10 @@ app.use(
 |- /logs
     |- /important - Access with error codes
     |- /regular - All accesses
-|- /get - Prioritised access to the database for SELECTS
-|- /update - second priority line for updating new data
-|- /insert - second priority line for adding new data
-|- /raw - Last priority but flexible requests
+|- /get - for SELECTS
+|- /update - for updating data
+|- /insert - for adding new data
+|- /raw - flexible requests
 */
 
 app.get('/status', auth, (req, res) => {
@@ -129,6 +115,28 @@ app.get("/logs/regular", auth, (req, res, next) => {
   fs.readFile('./log/access.log', 'utf8', function (err, data) {
     res.status(200).send(data)
   });
+});
+
+app.get("/get", auth, (req, res, next) => {
+  try {
+    let sql = `select * from [Mainframe] where Id>=? ORDER BY Id DESC LIMIT ?;`
+    var params = [req.query.params.offset, req.query.params.limit];
+    console.log(sql);
+    db.all(sql, params, (err, rows) => {
+      if (err) {
+        res.status(400).json({ "error": err.message });
+        return;
+      }
+      res.setHeader("Content-Type", "application/json");
+      res.json({
+        "message": "success",
+        "data": rows
+      })
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(503);
+  }
 });
 
 app.post("/raw", auth, (req, res, next) => {
@@ -151,7 +159,43 @@ app.post("/raw", auth, (req, res, next) => {
     console.log(error);
     res.status(503);
   }
+});
 
+app.post("/insert", auth, (req, res, next) => {
+  try {
+    let temp = req.query.params;
+    let sql = `INSERT INTO [Mainframe] (PassTo, Nickname, Email, Password, Refferer, Target, Created, CreateTime, ToBeRevisited, DateLastChanged, DateToCreate, DateCreated, VPNreferenc, Plan) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?);`
+    let params = [
+      temp.PassTo || 1,
+      temp.Nickname || null,
+      temp.Email || null,
+      temp.Password || null,
+      temp.Refferer || "https://google.com",
+      temp.Target || "https://discord.com",
+      temp.Created || 0,
+      temp.CreateTime || Date.now() + 20000,
+      temp.ToBeRevisited || "false",
+      Date.now(),
+      Date.now(),
+      temp.VPNreferenc || null,
+      temp.Plan || null
+    ];
+    console.log(sql);
+    db.all(sql, params, (err, rows) => {
+      if (err) {
+        res.status(400).json({ "error": err.message });
+        return;
+      }
+      res.setHeader("Content-Type", "application/json");
+      res.json({
+        "message": "success",
+        "data": rows
+      })
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(503);
+  }
 });
 
 app.listen(port, () => {
