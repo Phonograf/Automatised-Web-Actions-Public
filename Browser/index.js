@@ -231,13 +231,14 @@ function run(user, vpnref, specialInstructions) {
                             array[randomIndex], array[currentIndex]];
                     }
                 }
-                shuffle(Rand);
+                shuffle(ARR);
                 let bound = Rand(Minimum, Maximum);
                 await activity(ARR, bound);
             }
 
             async function activity(ARR, bound) {
                 bound = bound || ARR.length;
+                if(bound>ARR.length)bound=ARR.length;
                 for (let index = 0; index < bound; index++) {
                     let tee = ARR[index];
                     let script = await activities.translator.fetchExcel.default(tee);
