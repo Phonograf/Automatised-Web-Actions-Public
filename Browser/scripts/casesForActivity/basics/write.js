@@ -3,9 +3,11 @@
  *
  * @param {page} object - Passing page
  * @param {'element'} object - Passing object
+ * @param {'user'} object - Passing user
+ * @param {'cursor'} object - Passing cursor
  */
 
-export default async function write(page,element) {
+export default async function write(page,element,user,cursor) {
     let log= await import ('../../functions.js'); 
     log = (log).default;
     let to_write = element.comment;

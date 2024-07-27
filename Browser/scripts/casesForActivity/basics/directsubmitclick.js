@@ -5,10 +5,10 @@
  * @param {'element'} object - Passing object
  */
 
-export default async function directclick(page,element) {
+export default async function directclick(page,element,user,cursor) {
+    let log= await import ('../../functions.js'); 
+    log = (log).default;
     try {
-        let log= await import ('../../functions.js'); 
-        log = (log).default;
         await cursor.click('[type="submit"]');
         log(`Success ${element.purpose}`, 'info');
     } catch (error) {

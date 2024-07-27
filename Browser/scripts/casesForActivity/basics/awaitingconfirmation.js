@@ -5,7 +5,7 @@
  * @param {'element'} object - Passing object
  */
 
-export default async function awaitingconfirmation(page,element) {
+export default async function awaitingconfirmation(page,element,user,cursor) {
     let log= await import ('../../functions.js'); 
     log = (log).default;
     log(`${element.purpose} waiting for ${element.selector}`, 'info');

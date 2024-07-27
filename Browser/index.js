@@ -255,8 +255,9 @@ function run(user, vpnref, specialInstructions) {
                         }
                         //execution area
                         try {
-                            await activities.basics[element.action].default(page,element);
+                            await activities.basics[element.action].default(page,element,user,cursor);
                         } catch (error) {
+                            console.log(error);
                             log(`Action ${element.action} doesn't exist`,'warn');
                         }
                     }
@@ -305,6 +306,7 @@ function run(user, vpnref, specialInstructions) {
             browser.close();
             return resolve("Success");
         } catch (e) {
+            log(`Error on Browser ${e.message}`,'err')
             SQLWriteSignUp(db,{
                 Id: user.id,
                 RelativeStorage: user.id,
@@ -313,7 +315,13 @@ function run(user, vpnref, specialInstructions) {
                 StayTime: StayTime,
                 VPNreferenc: vpnref
             });
-            browser.close();
+            try {
+                //sometimes undefined appears. I need to check it
+                browser.close();
+            } catch (error) {
+                log(`Failed to close browser ${error.message}`,'err');
+            }
+            
             return reject(e);
         }
     });

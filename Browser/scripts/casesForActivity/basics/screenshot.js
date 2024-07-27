@@ -4,10 +4,9 @@
  * @param {'element'} object - Passing object
  */
 
-export default async function breaker(page,element) {
+export default async function screenshot(page,element,user,cursor) {
     let log= await import ('../../functions.js'); 
     log = (log).default;
     await page.screenshot({ path: `../DBs/sessions/${user.id}/${element.selector}.png` });
     log("Screenshot made", "info");
 }
-
