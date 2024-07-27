@@ -401,6 +401,29 @@ export function runManual(url, referrer, user, vpnref) {
             });
             const page = await browser.newPage();
             const cursor = createCursor(page);
+            let headers = {}
+
+            //referrer
+            if (user.userData.Refferer) {
+                if (process.env.VisitReferer) {
+                    await page.goto(user.userData.Refferer, { waitUntil: 'load', timeout: 0 });
+                } else {
+                    headers['Referer'] = user.userData.Referrer;
+                }
+                log(`Referer page (${user.userData.Refferer}) was proceeded`, 'done');
+            }
+            // User agent plugin. IMPORTANT! CAPTCHA WON"T BE LOADED WITH USER AGENT
+            if (process.env.UserAgent == true) {
+                headers['User-Agent'] = randomUseragent.getRandom();
+            }
+
+            // Target Page
+            log(url, 'info');
+            await page.setExtraHTTPHeaders(headers);
+            await page.goto(url, { waitUntil: 'load', timeout: 0 });
+            log(`Target page was loaded`, 'done');
+
+            /*
             let refTable = user.userData.Refferer;
             let execRef = refTable || referrer;
             await page.goto(execRef, { waitUntil: 'load', timeout: 0 });
@@ -410,7 +433,7 @@ export function runManual(url, referrer, user, vpnref) {
                 'referer': execRef
             });
             await page.goto(url, { waitUntil: 'load', timeout: 0 });
-            log(`Target page was loaded`, 'done');
+            log(`Target page was loaded`, 'done');*/
 
             let sql = `UPDATE [Mainframe] set
             DateLastChanged=${Date.now()}
