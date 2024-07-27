@@ -93,7 +93,7 @@ export async function selfLaunch(params) {
             await EngageSignUp();
             async function EngageSignUp(params) {
                 let id = Number(params[1]) || 1;
-                let user = await SQLUserExtraction(db,id);
+                let user = await SQLUserExtraction(db, id);
                 user = user[0];
                 user = {
                     id: user.Id,
@@ -120,7 +120,7 @@ export async function selfLaunch(params) {
             await EngageManual(params);
             async function EngageManual(params) {
                 let id = Number(params[1]) || Number(1);
-                let user = await SQLUserExtraction(db,id);
+                let user = await SQLUserExtraction(db, id);
                 user = user[0];
                 user = {
                     id: user.Id,
@@ -238,7 +238,7 @@ function run(user, vpnref, specialInstructions) {
 
             async function activity(ARR, bound) {
                 bound = bound || ARR.length;
-                if(bound>ARR.length)bound=ARR.length;
+                if (bound > ARR.length) bound = ARR.length;
                 for (let index = 0; index < bound; index++) {
                     let tee = ARR[index];
                     let script = await activities.translator.fetchExcel.default(tee);
@@ -258,10 +258,10 @@ function run(user, vpnref, specialInstructions) {
                         try {
                             //Ignore undefined
                             if (element.action) {
-                                await activities.basics[element.action].default(page,element,user,cursor); 
+                                await activities.basics[element.action].default(page, element, user, cursor);
                             }
                         } catch (error) {
-                            log(`Action ${element.action} doesn't exist`,'warn');
+                            log(`Action ${element.action} doesn't exist`, 'warn');
                         }
                     }
                     log(`Executed script ${tee}`, "done");
@@ -297,7 +297,7 @@ function run(user, vpnref, specialInstructions) {
                 }
             }
 
-            SQLWriteSignUp(db,{
+            SQLWriteSignUp(db, {
                 Id: user.id,
                 RelativeStorage: user.id,
                 IncidentLog: incLog,
@@ -309,8 +309,8 @@ function run(user, vpnref, specialInstructions) {
             browser.close();
             return resolve("Success");
         } catch (e) {
-            log(`Error on Browser ${e.message}`,'err')
-            SQLWriteSignUp(db,{
+            log(`Error on Browser ${e.message}`, 'err')
+            SQLWriteSignUp(db, {
                 Id: user.id,
                 RelativeStorage: user.id,
                 IncidentLog: `${e.name}- ${e.message}`,
@@ -322,9 +322,9 @@ function run(user, vpnref, specialInstructions) {
                 //sometimes undefined appears. I need to check it
                 browser.close();
             } catch (error) {
-                log(`Failed to close browser ${error.message}`,'err');
+                log(`Failed to close browser ${error.message}`, 'err');
             }
-            
+
             return reject(e);
         }
     });
@@ -456,34 +456,32 @@ export function runManual(url, referrer, user, vpnref) {
 }
 
 async function Manual(urlM, urlR, user) {
-    //Launch VPN
-    let requiredVPNparam;
-    try {
-        requiredVPNparam = user.userData.VPNreferenc;
-    } catch (error) {
-        log("Missing VPN Id. VPN will be decided randomly", "warn");
-        requiredVPNparam = undefined;
-    }
-    let VPNSession = new VPN(requiredVPNparam);
-    let launched = await VPNSession.initiate();
-    if ((launched == "Failed")) {
-        log("VPN failed", "err");
-        if ((process.env.VPNFailStop == true)) {
-            log("Exiting according with the Settings", "err");
-            return
+    if (process.env.VPNUsage == "true") {
+        //Launch VPN
+        let requiredVPNparam;
+        try {
+            requiredVPNparam = user.userData.VPNreferenc;
+        } catch (error) {
+            log("Missing VPN Id. VPN will be decided randomly", "warn");
+            requiredVPNparam = undefined;
+        }
+        let VPNSession = new VPN(requiredVPNparam);
+        let launched = await VPNSession.initiate();
+        if ((launched == "Failed")) {
+            log("VPN failed", "err");
+            if ((process.env.VPNFailStop == true)) {
+                log("Exiting according with the Settings", "err");
+                return
+            }
         }
     }
     //Launch Webscrapper
     await runManual(urlM, urlR, user, VPNSession._specID).then(
         response => {
             log(response, 'done');
-            //Disable VPN session
-            //VPNSession.VPNDisable(); 
         },
         error => {
             log(error, 'err');
-            //Disable VPN session
-            //VPNSession.VPNDisable(); 
         }
     );
 
@@ -521,7 +519,7 @@ export async function Plan(params) {
             if (process.env.VPNUsage == "true") {
                 UseVPN(urlM, urlR, userB, specialtask);
             } else {
-                log('Proceeding w/o VPN','info');
+                log('Proceeding w/o VPN', 'info');
                 NoVPN(urlM, urlR, userB, specialtask);
             }
 
