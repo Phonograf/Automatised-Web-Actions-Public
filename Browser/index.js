@@ -255,9 +255,11 @@ function run(user, vpnref, specialInstructions) {
                         }
                         //execution area
                         try {
-                            await activities.basics[element.action].default(page,element,user,cursor);
+                            //Ignore undefined
+                            if (element.action) {
+                                await activities.basics[element.action].default(page,element,user,cursor); 
+                            }
                         } catch (error) {
-                            console.log(error);
                             log(`Action ${element.action} doesn't exist`,'warn');
                         }
                     }
