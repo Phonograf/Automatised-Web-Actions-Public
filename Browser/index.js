@@ -386,6 +386,7 @@ export async function NoVPN(urlM, urlR, user, specialInstructions) {
 
 //#region Manual
 export function runManual(url, referrer, user, vpnref) {
+    url = user.userData.Target;
     log(`Opening Browser`, 'info');
     let ToBeReturned = new Promise(async (resolve, reject) => {
         let browser;
@@ -423,18 +424,6 @@ export function runManual(url, referrer, user, vpnref) {
             await page.goto(url, { waitUntil: 'load', timeout: 0 });
             log(`Target page was loaded`, 'done');
 
-            /*
-            let refTable = user.userData.Refferer;
-            let execRef = refTable || referrer;
-            await page.goto(execRef, { waitUntil: 'load', timeout: 0 });
-            log(`Referrer page (${execRef}) was loaded`, 'done');
-            await page.setExtraHTTPHeaders({
-                'user-agent': randomUseragent.getRandom(),
-                'referer': execRef
-            });
-            await page.goto(url, { waitUntil: 'load', timeout: 0 });
-            log(`Target page was loaded`, 'done');*/
-
             let sql = `UPDATE [Mainframe] set
             DateLastChanged=${Date.now()}
             Where Id=${user.id};`
@@ -456,6 +445,7 @@ export function runManual(url, referrer, user, vpnref) {
 }
 
 async function Manual(urlM, urlR, user) {
+    let VPNSession;
     if (process.env.VPNUsage == "true") {
         //Launch VPN
         let requiredVPNparam;
@@ -465,7 +455,7 @@ async function Manual(urlM, urlR, user) {
             log("Missing VPN Id. VPN will be decided randomly", "warn");
             requiredVPNparam = undefined;
         }
-        let VPNSession = new VPN(requiredVPNparam);
+        VPNSession = new VPN(requiredVPNparam);
         let launched = await VPNSession.initiate();
         if ((launched == "Failed")) {
             log("VPN failed", "err");
