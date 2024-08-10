@@ -1,0 +1,15 @@
+{
+    "modules":[
+        {
+            "name":"puppeteer-extra-plugin-human-typing",
+            "built-in":false,
+            "import":"./plugins/puppeteer-extra-plugin-human-typing/index.js",
+            "import-allowed":true,
+            "init_function":"./init-puppeteer-scripts/h-typing.js",
+            "init_function_enabled":true,
+            "enabled":true,
+            "return-functions":true,
+            "functions-to-be-returned":[]
+        }
+    ]
+}
